@@ -279,8 +279,11 @@ send_tls_message(int socketno, void *msg, int msg_len)
     if (write_result == -1) {
         printf("Error sending TLS message. Error code: %d \n", errno);
     }
+    if (write_result != msg_len) {
+        printf("Warning: message was not fully written!\n");
+        write_result = -1; // set return code to -1.
+    }
     return write_result;
-
 }
 
 /*
@@ -296,7 +299,16 @@ send_tls_message(int socketno, void *msg, int msg_len)
 int
 receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
 {
-    // YOUR CODE HERE
+    // TODO - figure out why we need msg_type
+    int read_result = read(socketno, msg, msg_len);
+    if (read_result == -1) {
+        printf("Error sending TLS message. Error code: %d \n", errno);
+    }
+    if (read_result != msg_len) {
+        printf("Warning: message was not fully read!\n");
+        read_result = -1; // set error return code.
+    }
+    return read_result;
 }
 
 

@@ -18,7 +18,9 @@
 8. submit
 9. Drink heavily in celebration!
 
+## Random
 
+- figure out why we need msg_type in receive_tls_message
 
 
 ## NOTES
