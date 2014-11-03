@@ -227,7 +227,20 @@ int main(int argc, char **argv) {
 void
 decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_mod)
 {
-    // YOUR CODE HERE
+    mpz_t mpz_cert;
+    mpz_init(mpz_cert);
+    mpz_set_str(mpz_cert, cert->cert, 16); // note, leading '0x' may cause issues.
+
+    perform_rsa(decrypted_cert, mpz_cert, key_exp, key_mod);
+
+    // debug
+    char* result_str = mpz_get_str(NULL, 16, decrypted_cert);
+    int i = 0;
+    while(result_str[i] != '\0') {
+        printf("%c", hex_to_ascii(result_str[i], result_str[i+1]));
+        i+=2;
+    }
+    // end debug
 }
 
 /*
@@ -245,8 +258,8 @@ decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_
 void
 decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, mpz_t key_mod)
 {
-    // YOUR CODE HERE
-    // TODO - convert ms_ver->ps to mpz_t
+
+    /* This code is not done. Be careful! //
     mpz_t message;
     mpz_init(message);
     mpz_set_str(message, ms_ver->ps, 16);
@@ -261,6 +274,7 @@ decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, 
         i+=2;
     }
     // end debug
+    */
 }
 
 /*
@@ -275,7 +289,14 @@ decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, 
 void
 compute_master_secret(int ps, int client_random, int server_random, char *master_secret)
 {
-    // YOUR CODE HERE
+    // Note - hardcoding everything as 32 bit ints.
+
+    // build the massive data sequence - PS | client_random | server_random | PS
+    // so 128 bits of data.
+    // use scanner, %x for data. 32 bit int = 8 chars.
+    char ps_char[8];
+    snprintf(ps_char, 4, "%x", ps);
+    printf("ps_char: %s\n", ps_char);
 }
 
 /*
