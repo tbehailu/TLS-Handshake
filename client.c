@@ -246,6 +246,21 @@ void
 decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, mpz_t key_mod)
 {
     // YOUR CODE HERE
+    // TODO - convert ms_ver->ps to mpz_t
+    mpz_t message;
+    mpz_init(message);
+    mpz_set_str(message, ms_ver->ps, 16);
+
+    perform_rsa(decrypted_ms, message, key_exp, key_mod);
+
+    // debug
+    char* result_str = mpz_get_str(NULL, 16, decrypted_ms);
+    int i = 0;
+    while(result_str[i] != '\0') {
+        printf("%c", hex_to_ascii(result_str[i], result_str[i+1]));
+        i+=2;
+    }
+    // end debug
 }
 
 /*
