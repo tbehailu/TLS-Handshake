@@ -147,7 +147,7 @@ int main(int argc, char **argv) {
 
   aes_init(&enc_ctx);
   aes_init(&dec_ctx);
-  
+
   // YOUR CODE HERE
   // SET AES KEYS
 
@@ -305,6 +305,16 @@ receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
 static void
 perform_rsa(mpz_t result, mpz_t message, mpz_t e, mpz_t n)
 {
+    mpz_set_ui(result, 1ul);
+    while (mpz_cmp_ui(d, 0ul) > 0) {
+        if (is_odd(d)) {
+            mpz_mul(result, result, message);
+            mpz_mod(result, result, n);
+        }
+        mpz_mul(message,message,message);
+        mpz_mod(message, message, n);
+        mpz_div_ui(d, d, 2);
+    }
 }
 
 
