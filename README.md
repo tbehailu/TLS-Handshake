@@ -1,4 +1,4 @@
-# CS 162 Project 1 - TLS Implementation
+# CS 161 Project 1 - TLS Implementation
 
 ## Authors:
 
@@ -8,9 +8,6 @@
 
 ## ToDo
 
-1. fill in perform_rsa() function with project 0 solution.
-2. implement send_tls_message() and receive_tls_message()
-3. implement decrypt_cert()
 4. implement compute_master_secret(). use random_int()
 5. implement decrypt_verify_master_secret()
 6. fill out main

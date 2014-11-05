@@ -295,8 +295,48 @@ compute_master_secret(int ps, int client_random, int server_random, char *master
     // so 128 bits of data.
     // use scanner, %x for data. 32 bit int = 8 chars.
     char ps_char[8];
-    snprintf(ps_char, 4, "%x", ps);
+    snprintf(ps_char, 4, "%2x", ps);
     printf("ps_char: %s\n", ps_char);
+
+    // result
+    mpz_t result;
+    mpz_init(result);
+
+    // ps
+    mpz_t pst;
+    mpz_init(pst);
+    mpz_set_si(pst, ps); // assign ps value to mpz
+    mpz_mul_2exp(pst, pst, 96); // ps << 96
+    mpz_add_ui(result, pst, 0);
+
+
+    // client secret
+    mpz_t crt;
+    mpz_init(crt);
+    mpz_set_si(crt, client_random); // assign ps value to mpz
+    mpz_mul_2exp(crt, crt, 64); // crt << 64
+    mpz_add(result, result, crt);
+
+    mpz_t srt;
+    mpz_init(srt);
+    mpz_set_si(srt, server_random); // assign ps value to mpz
+    mpz_mul_2exp(srt, srt, 32); // srt << 32
+    mpz_add(result, result, srt);
+
+    // ps
+    mpz_t pst2;
+    mpz_init(pst2);
+    mpz_set_si(pst2, ps); // assign ps value to mpz
+    mpz_add(result, result, pst2);
+
+
+    // save to master_secret pointer. mpz to char string
+
+
+
+
+
+
 }
 
 /*
