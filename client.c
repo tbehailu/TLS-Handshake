@@ -139,6 +139,16 @@ int main(int argc, char **argv) {
     // YOUR CODE HERE
     // IMPLEMENT THE TLS HANDSHAKE
 
+    // 1. send Client hello
+
+    // 2. receive Server hello
+
+    // 3. send client cert
+
+    // 4. receive server cert
+
+
+
     /*
     * START ENCRYPTED MESSAGES
     */
@@ -259,22 +269,17 @@ void
 decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, mpz_t key_mod)
 {
 
-    /* This code is not done. Be careful! //
-    mpz_t message;
-    mpz_init(message);
-    mpz_set_str(message, ms_ver->ps, 16);
+    /* This code is not done. Be careful! */
 
+
+    mpz_t ps;
+    mpz_init(ps);
+    mpz_set_str(ps, ms_ver->ps, 16);
+
+    // perform the decryption
     perform_rsa(decrypted_ms, message, key_exp, key_mod);
 
-    // debug
-    char* result_str = mpz_get_str(NULL, 16, decrypted_ms);
-    int i = 0;
-    while(result_str[i] != '\0') {
-        printf("%c", hex_to_ascii(result_str[i], result_str[i+1]));
-        i+=2;
-    }
-    // end debug
-    */
+
 }
 
 /*
@@ -291,9 +296,10 @@ compute_master_secret(int ps, int client_random, int server_random, char *master
 {
     // Note - hardcoding everything as 32 bit ints.
 
+    // IMPORTANT - DEBUG THIS FUNCTION! It is untested and is likely buggy.
+
     // build the massive data sequence - PS | client_random | server_random | PS
     // so 128 bits of data.
-    // use scanner, %x for data. 32 bit int = 8 chars.
     char ps_char[8];
     snprintf(ps_char, 4, "%2x", ps);
     printf("ps_char: %s\n", ps_char);
@@ -331,12 +337,7 @@ compute_master_secret(int ps, int client_random, int server_random, char *master
 
 
     // save to master_secret pointer. mpz to char string
-
-
-
-
-
-
+    mpz_get_str (master_secret, 16, result);
 }
 
 /*
