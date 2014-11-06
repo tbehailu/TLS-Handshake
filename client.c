@@ -147,6 +147,11 @@ int main(int argc, char **argv) {
 
     // 4. receive server cert
 
+    // 5. Parse server cert
+    // use: get_cert_exponent(mpz_t result, char *cert);
+    // use: get_cert_modulus(mpz_t result, char *cert);
+
+
 
 
     /*
@@ -165,6 +170,25 @@ int main(int argc, char **argv) {
 
     // YOUR CODE HERE
     // SET AES KEYS
+
+    /* NOT DONE! */
+    /*
+    unsigned char enc_key[16] = {};
+    unsigned char dec_key[16] = {};
+    if (aes_setkey_enc(&enc_ctx, enc_key, 128)) {
+        printf("Error setting key in crack.\n");
+    }
+
+    if (aes_setkey_enc(&dec_ctx, dec_key, 128)) {
+        printf("Error setting key in crack.\n");
+    }
+    */
+
+
+
+
+
+
 
     fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
     /* Send and receive data. */
@@ -277,7 +301,9 @@ decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, 
     mpz_set_str(ps, ms_ver->ps, 16);
 
     // perform the decryption
-    perform_rsa(decrypted_ms, message, key_exp, key_mod);
+    perform_rsa(decrypted_ms, ps, key_exp, key_mod);
+
+    // compare decrypted_ms and locally stored master secret
 
 
 }
@@ -377,6 +403,11 @@ int
 receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
 {
     // TODO - figure out why we need msg_type
+    printf("msg_type arg: %d", msg_type);
+    // maybe cast the msg, or do sizeof comparison?
+    // does C even have type inference?
+
+
     int read_result = read(socketno, msg, msg_len);
     if (read_result == -1) {
         printf("Error sending TLS message. Error code: %d \n", errno);
