@@ -138,18 +138,87 @@ int main(int argc, char **argv) {
 
     // YOUR CODE HERE
     // IMPLEMENT THE TLS HANDSHAKE
+    int exit_code; // used for catching errors.
 
+    /* NOTE - THIS CODE IS NOT COMPLETE YET. */
     // 1. send Client hello
+    struct hello_message c_hello;
+    c_hello.type = CLIENT_HELLO;
+    c_hello.random = random_int();
+    c_hello.cipher_suite = TLS_RSA_WITH_AES_128_ECB_SHA256;
+    exit_code = send_tls_message(sockfd, c_hello, HELLO_MSG_SIZE);
+    if (exit_code < 0) {
+        printf("caught error! TODO - quit here.");
+    }
+
 
     // 2. receive Server hello
+    struct hello_message s_hello;
+    exit_code = receive_tls_message(sockfd, s_hello, HELLO_MSG_SIZE, SERVER_HELLO);
+    if (exit_code < 0) {
+        printf("caught error! TODO - quit here.");
+    }
+    int server_random = s_hello.random;
+
 
     // 3. send client cert
+    struct cert_message c_cert;
+    c_cert.type = CLIENT_CERTIFICATE;
+    memcpy(c_cert.cert, /* client_certificate goes here*/, RSA_MAX_LEN);
+    exit_code = send_tls_message(sockfd, c_cert, CERT_MSG_SIZE);
+    if (exit_code < 0) {
+        printf("caught error! TODO - quit here.");
+    }
 
     // 4. receive server cert
+    struct cert_message s_cert;
+    exit_code = receive_tls_message(sockfd, s_cert, CERT_MSG_SIZE, SERVER_CERTIFICATE);
+    if (exit_code < 0) {
+        printf("caught error! TODO - quit here.");
+    }
 
-    // 5. Parse server cert
+    // 4.1 decrypt server certificate and extract server public key
+    // decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_mod)
     // use: get_cert_exponent(mpz_t result, char *cert);
     // use: get_cert_modulus(mpz_t result, char *cert);
+
+
+    // 5. Compute premaster secret, send it to server, encrypted with server public key
+
+    // prepare data structures
+    struct ps_msg psm;
+    psm.type = PREMASTER_SECRET;
+    int ps = random_int();
+    char plaintext_premaster[RSA_MAX_LEN];
+
+    // begin premaster computation
+    compute_master_secret(ps, c_hello.random, s_hello.random, &plaintext_premaster); // plaintext value
+    mpz_t encrypted_premaster;
+    mpz_init(encrypted_premaster);
+
+    // start encrypting premaster
+    perform_rsa(&encrypted_premaster, ps, /* server exponent*/, /*server modulus*/); // encrypt with server key
+    psm.ps = encrypted_premaster; // copy to message
+
+    // send the message
+    exit_code = send_tls_message(sockfd, psm, PS_MSG_SIZE);
+    if (exit_code < 0) {
+        printf("caught error! TODO - quit here.");
+    }
+
+    // 6. compute the local master secret
+    char local_master[RSA_MAX_LEN];
+    compute_master_secret(ps, c_hello.random, s_hello.random, &local_master);
+
+    // 6.1 and now receive the server master, confirm it's the same
+    struct ps_msg psm_response;
+    exit_code = receive_tls_message(sockfd, psm_response, PS_MSG_SIZE, VERIFY_MASTER_SECRET);
+    if (exit_code < 0) {
+        printf("caught error! TODO - quit here.");
+    }
+    //decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, mpz_t key_mod)
+
+
 
 
 
@@ -169,11 +238,11 @@ int main(int argc, char **argv) {
     aes_init(&dec_ctx);
 
     // YOUR CODE HERE
-    // SET AES KEYS
+    // SET AES KEYS - to master_secret
 
     /* NOT DONE! */
     /*
-    unsigned char enc_key[16] = {};
+    unsigned char enc_key[16] = {}; // or = master_secret?
     unsigned char dec_key[16] = {};
     if (aes_setkey_enc(&enc_ctx, enc_key, 128)) {
         printf("Error setting key in crack.\n");
@@ -402,10 +471,17 @@ send_tls_message(int socketno, void *msg, int msg_len)
 int
 receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
 {
-    // TODO - figure out why we need msg_type
-    printf("msg_type arg: %d", msg_type);
-    // maybe cast the msg, or do sizeof comparison?
-    // does C even have type inference?
+    // NOTE - msg_type is a constant defined in handshake.c. Depending on the argument, we are receiving different messages,
+    /* Possible values:
+    ERROR_MESSAGE
+    CLIENT_HELLO
+    SERVER_HELLO
+    CLIENT_CERTIFICATE
+    SERVER_CERTIFICATE
+    PREMASTER_SECRET
+    VERIFY_MASTER_SECRET
+    ENCRYPTED_MESSAGE
+    */
 
 
     int read_result = read(socketno, msg, msg_len);
