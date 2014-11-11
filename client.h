@@ -34,6 +34,6 @@ void get_cert_modulus(mpz_t result, char *cert);
 
 void decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_mod);
 void decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, mpz_t key_mod);
-void compute_master_secret(int pms, int client_random, int server_random, char *master_secret);
+void compute_master_secret(int pms, int client_random, int server_random, unsigned char *master_secret);
 int send_tls_message(int socketno, void *msg, int msg_len);
 int receive_tls_message(int socketno, void *msg, int msg_len, int msg_type);

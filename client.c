@@ -192,7 +192,7 @@ int main(int argc, char **argv) {
     ps_msg psm;
     psm.type = PREMASTER_SECRET;
     int ps = random_int();
-    char plaintext_premaster[RSA_MAX_LEN]; // might not be plaintext
+    unsigned char plaintext_premaster[RSA_MAX_LEN]; // might not be plaintext
 
     // begin premaster computation
     compute_master_secret(ps, c_hello.random, s_hello.random, plaintext_premaster); // plaintext value
@@ -210,7 +210,7 @@ int main(int argc, char **argv) {
     }
 
     // 6. compute the local master secret
-    char local_master[RSA_MAX_LEN];
+    unsigned char local_master[RSA_MAX_LEN];
     compute_master_secret(ps, c_hello.random, s_hello.random, local_master);
 
     // 6.1 and now receive the server master, confirm it's the same
@@ -390,7 +390,7 @@ decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, 
 *                         Write the end result here.
 */
 void
-compute_master_secret(int ps, int client_random, int server_random, char *master_secret)
+compute_master_secret(int ps, int client_random, int server_random, unsigned char *master_secret)
 {
     // IMPORTANT - DEBUG THIS FUNCTION! It is untested and is likely buggy.
 
