@@ -181,9 +181,27 @@ int main(int argc, char **argv) {
     }
 
     // 4.1 decrypt server certificate and extract server public key
-    // decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_mod)
-    // use: get_cert_exponent(mpz_t result, char *cert);
-    // use: get_cert_modulus(mpz_t result, char *cert);
+    // Get CA mod and exp
+    mpz_t ca_exp;
+    mpz_init_set_str(ca_exp, CA_EXPONENT, 16);
+    mpz_t ca_mod;
+    mpz_init_set_str(ca_mod, CA_MODULUS, 16);
+
+    // decrypt server
+    mpz_t decrypted_cert;
+    mpz_init(decrypted_cert);
+    decrypt_cert(decrypted_cert, &s_cert, ca_exp, ca_mod);
+    char* server_cert_string = mpz_get_str(NULL, 16, decrypted_cert);
+
+    // extract server exponent
+    mpz_t server_exponent;
+    mpz_init(server_exponent);
+    get_cert_exponent(server_exponent, server_cert_string);
+
+    // extract server mod
+    mpz_t server_mod;
+    mpz_init(server_mod);
+    get_cert_modulus(server_mod, server_cert_string);
 
 
     // 5. Compute premaster secret, send it to server, encrypted with server public key
@@ -192,22 +210,24 @@ int main(int argc, char **argv) {
     ps_msg psm;
     psm.type = PREMASTER_SECRET;
     int ps = random_int();
-    unsigned char plaintext_premaster[RSA_MAX_LEN]; // might not be plaintext
 
-    // begin premaster computation
-    compute_master_secret(ps, c_hello.random, s_hello.random, plaintext_premaster); // plaintext value
+    mpz_t ps_mpz;
+    mpz_init_set_si(ps_mpz, ps);
+    // start encryption
     mpz_t encrypted_premaster;
     mpz_init(encrypted_premaster);
+    perform_rsa(encrypted_premaster, ps_mpz, server_exponent, server_mod); // encrypt with server key
 
-    // start encrypting premaster
-    //perform_rsa(&encrypted_premaster, ps, /* server exponent*/, /*server modulus*/); // encrypt with server key
-    // psm.ps = encrypted_premaster; // copy to message
+    char* encrypted_premaster_string = mpz_get_str(NULL, 16, encrypted_premaster);
+    // memcpy(psm.ps, encrypted_premaster_string, RSA_MAX_LEN); // copy to message
 
     // send the message
     exit_code = send_tls_message(sockfd, &psm, PS_MSG_SIZE);
     if (exit_code < 0) {
         printf("caught error! TODO - quit here.");
     }
+
+
 
     // 6. compute the local master secret
     unsigned char local_master[RSA_MAX_LEN];
@@ -219,7 +239,11 @@ int main(int argc, char **argv) {
     if (exit_code < 0) {
         printf("caught error! TODO - quit here.");
     }
-    //decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t client_exp, mpz_t client_mod)
+
+    mpz_t server_premaster;
+    decrypt_verify_master_secret(server_premaster, &psm_response, client_exp, client_mod);
+
+    // check that str(server_premaster) == local_master
 
 
 
@@ -245,13 +269,11 @@ int main(int argc, char **argv) {
 
     /* NOT DONE! */
     /*
-    unsigned char enc_key[16] = {}; // or = master_secret?
-    unsigned char dec_key[16] = {};
-    if (aes_setkey_enc(&enc_ctx, enc_key, 128)) {
+    if (aes_setkey_enc(&enc_ctx, uchar* local_master, 128)) {
         printf("Error setting key in crack.\n");
     }
 
-    if (aes_setkey_enc(&dec_ctx, dec_key, 128)) {
+    if (aes_setkey_enc(&dec_ctx, uchar* local_master, 128)) {
         printf("Error setting key in crack.\n");
     }
     */
@@ -334,8 +356,7 @@ void
 decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_mod)
 {
     mpz_t mpz_cert;
-    mpz_init(mpz_cert);
-    mpz_set_str(mpz_cert, cert->cert, 16); // note, leading '0x' may cause issues.
+    mpz_init_set_str(mpz_cert, cert->cert, 16); // note, leading '0x' may cause issues.
 
     perform_rsa(decrypted_cert, mpz_cert, key_exp, key_mod);
 
