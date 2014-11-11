@@ -1,0 +1,8 @@
+
+1. All messages in this protocol have a type field sent in plaintext. If an attacker can alter packets being sent to and from the server, explain how it can launch a DoS attack on the server or client in a way that does not reveal it’s involvement.
+
+
+2. Look at the function random int(). How are the ”random” numbers cho- sen? Can an attacker learn any information about our system or other random values if they know our method? Suggest a way that a man-in-the-middle might be able to use this to break our encryption. Tip: try printing random values as they are chosen during the handshake.
+
+
+3. We have talked about a downgrade attack in class before. Assuming that the server and client supported multiple cipher suites (some weaker than others), show how a downgrade attack might be possible on the Terribly Lacking Secu- rity handshake. Then suggest a method or adaptation to the handshake that would mitigate a downgrade attack.
