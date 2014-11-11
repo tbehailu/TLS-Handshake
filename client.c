@@ -170,7 +170,20 @@ int main(int argc, char **argv) {
     // 3. send client cert
     cert_message c_cert;
     c_cert.type = CLIENT_CERTIFICATE;
+
+    /****** Double check *******/
+
+    // read c_file into buffer
+    char buffer[CERT_MSG_SIZE];
+    fread(buffer, CERT_MSG_SIZE, 1, c_file);
+
+    printf("c_file contents: %s\n", buffer);
+
+    mpz_t c_file_string;
+    mpz_init_set_str(c_file_string, buffer, 16);
+    // memcpy(void *dest, const void *src, size_t n);
     //memcpy(c_cert.cert, /* client_certificate goes here - use c_file, just read file. Might need to use gmp - string to mpz_t*/, RSA_MAX_LEN);
+    memcpy(c_cert.cert, c_file_string, RSA_MAX_LEN);
     exit_code = send_tls_message(sockfd, &c_cert, CERT_MSG_SIZE);
     if (exit_code < 0) {
         printf("caught error! TODO - quit here.");
@@ -208,6 +221,7 @@ int main(int argc, char **argv) {
 
 
     // 5. Compute premaster secret, send it to server, encrypted with server public key
+
 
     // prepare data structures
     ps_msg psm;
@@ -483,10 +497,13 @@ receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
     VERIFY_MASTER_SECRET
     ENCRYPTED_MESSAGE
     */
-    printf("message type = %d\n", msg_type);
+    
 
 
     int read_result = read(socketno, msg, msg_len);
+
+    printf("message type = %d, read_result = %d\n", msg_type, read_result);
+
     if (read_result == -1) {
         printf("Error sending TLS message. Error code: %d \n", errno);
     }
