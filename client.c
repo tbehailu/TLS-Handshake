@@ -148,6 +148,9 @@ int main(int argc, char **argv) {
     hello_message c_hello;
     c_hello.type = CLIENT_HELLO;
     c_hello.random = random_int();
+    
+    printf("random int = %d\n",c_hello.random);
+
     c_hello.cipher_suite = TLS_RSA_WITH_AES_128_ECB_SHA256;
     exit_code = send_tls_message(sockfd, &c_hello, HELLO_MSG_SIZE);
     if (exit_code < 0) {
@@ -480,6 +483,7 @@ receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
     VERIFY_MASTER_SECRET
     ENCRYPTED_MESSAGE
     */
+    printf("message type = %d\n", msg_type);
 
 
     int read_result = read(socketno, msg, msg_len);
