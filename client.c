@@ -164,7 +164,7 @@ int main(int argc, char **argv) {
     // 3. send client cert
     struct cert_message c_cert;
     c_cert.type = CLIENT_CERTIFICATE;
-    memcpy(c_cert.cert, /* client_certificate goes here*/, RSA_MAX_LEN);
+    memcpy(c_cert.cert, /* client_certificate goes here - use c_file, just read file. Might need to use gmp - string to mpz_t*/, RSA_MAX_LEN);
     exit_code = send_tls_message(sockfd, c_cert, CERT_MSG_SIZE);
     if (exit_code < 0) {
         printf("caught error! TODO - quit here.");
@@ -189,7 +189,7 @@ int main(int argc, char **argv) {
     struct ps_msg psm;
     psm.type = PREMASTER_SECRET;
     int ps = random_int();
-    char plaintext_premaster[RSA_MAX_LEN];
+    char plaintext_premaster[RSA_MAX_LEN]; // might not be plaintext
 
     // begin premaster computation
     compute_master_secret(ps, c_hello.random, s_hello.random, &plaintext_premaster); // plaintext value
@@ -216,7 +216,7 @@ int main(int argc, char **argv) {
     if (exit_code < 0) {
         printf("caught error! TODO - quit here.");
     }
-    //decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, mpz_t key_mod)
+    //decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t client_exp, mpz_t client_mod)
 
 
 
@@ -433,6 +433,10 @@ compute_master_secret(int ps, int client_random, int server_random, char *master
 
     // save to master_secret pointer. mpz to char string
     mpz_get_str (master_secret, 16, result);
+
+    // do the hash
+
+    // return result
 }
 
 /*
