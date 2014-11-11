@@ -195,7 +195,7 @@ int main(int argc, char **argv) {
     char plaintext_premaster[RSA_MAX_LEN]; // might not be plaintext
 
     // begin premaster computation
-    compute_master_secret(ps, c_hello.random, s_hello.random, &plaintext_premaster); // plaintext value
+    compute_master_secret(ps, c_hello.random, s_hello.random, plaintext_premaster); // plaintext value
     mpz_t encrypted_premaster;
     mpz_init(encrypted_premaster);
 
@@ -211,7 +211,7 @@ int main(int argc, char **argv) {
 
     // 6. compute the local master secret
     char local_master[RSA_MAX_LEN];
-    compute_master_secret(ps, c_hello.random, s_hello.random, &local_master);
+    compute_master_secret(ps, c_hello.random, s_hello.random, local_master);
 
     // 6.1 and now receive the server master, confirm it's the same
     ps_msg psm_response;
@@ -411,7 +411,7 @@ compute_master_secret(int ps, int client_random, int server_random, char *master
     sha256_init(&ctx);
     sha256_update(&ctx, ps_array, 8);
     sha256_update(&ctx, cli_array, 8);
-    sha256_update(&ctx, server_random, 8);
+    sha256_update(&ctx, ser_array, 8);
     sha256_update(&ctx, ps_array, 8);
     sha256_final(&ctx, master_secret);
 
