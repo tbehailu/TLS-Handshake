@@ -149,7 +149,8 @@ int main(int argc, char **argv) {
     c_hello.type = CLIENT_HELLO;
     c_hello.random = random_int();
     
-    printf("random int = %d\n",c_hello.random);
+    // print statement for write-up #2
+    // printf("random int = %d\n",c_hello.random);
 
     c_hello.cipher_suite = TLS_RSA_WITH_AES_128_ECB_SHA256;
     exit_code = send_tls_message(sockfd, &c_hello, HELLO_MSG_SIZE);
@@ -171,17 +172,16 @@ int main(int argc, char **argv) {
     cert_message c_cert;
     c_cert.type = CLIENT_CERTIFICATE;
 
-    /****** Double check *******/
+    /****** TODO: Double check *******/
 
     // read c_file into buffer
     char buffer[CERT_MSG_SIZE];
     fread(buffer, CERT_MSG_SIZE, 1, c_file);
 
-    printf("c_file contents: %s\n", buffer);
+    // printf("c_file contents: %s\n", buffer);
 
     mpz_t c_file_string;
     mpz_init_set_str(c_file_string, buffer, 16);
-    // memcpy(void *dest, const void *src, size_t n);
     //memcpy(c_cert.cert, /* client_certificate goes here - use c_file, just read file. Might need to use gmp - string to mpz_t*/, RSA_MAX_LEN);
     memcpy(c_cert.cert, c_file_string, RSA_MAX_LEN);
     exit_code = send_tls_message(sockfd, &c_cert, CERT_MSG_SIZE);
@@ -236,6 +236,12 @@ int main(int argc, char **argv) {
     perform_rsa(encrypted_premaster, ps_mpz, server_exponent, server_mod); // encrypt with server key
 
     char* encrypted_premaster_string = mpz_get_str(NULL, 16, encrypted_premaster);
+
+    mpz_t encrypted_pms;
+    mpz_init_set_str(encrypted_pms, encrypted_premaster_string, 16);
+
+    /*** TODO: Double check how premaster is being set ****/
+    memcpy(psm.ps, encrypted_pms, RSA_MAX_LEN); // copy to message
     // memcpy(psm.ps, encrypted_premaster_string, RSA_MAX_LEN); // copy to message
 
     // send the message
@@ -440,6 +446,10 @@ compute_master_secret(int ps, int client_random, int server_random, unsigned cha
     assign(ser_array, server_random); // use assign from gentable. remember it's size 8.
 
     // add to hash
+    // Master secret = H(PS||clienthello.random||serverhello.random||PS)    
+    
+    // void sha256_update(SHA256_CTX *ctx, uchar data[], uint len)
+
     SHA256_CTX ctx;
     sha256_init(&ctx);
     sha256_update(&ctx, ps_array, 8);
@@ -498,12 +508,48 @@ receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
     ENCRYPTED_MESSAGE
     */
     
+    // debugging print statements
+    // void * to int reference: http://stackoverflow.com/questions/1640423/error-cast-from-void-to-int-loses-precision
+    // printf("msg int = %d, msg_type = %d\n", (int) msg, msg_type);
 
 
+    // TODO: Double-check
     int read_result = read(socketno, msg, msg_len);
+    printf("read_result = %d, msg_len = %d\n", read_result, msg_len);
 
-    printf("message type = %d, read_result = %d\n", msg_type, read_result);
+    if (read_result != msg_len || msg_type == ERROR_MESSAGE){ // if bytes read is not correct length or msg_type is error, return error 
+        return ERR_FAILURE;
+    }
 
+    if (msg_type == CLIENT_HELLO){
+        return ERR_FAILURE;
+    }
+
+    if (msg_type == SERVER_HELLO){
+        return ERR_FAILURE;
+    }
+
+    if (msg_type == CLIENT_CERTIFICATE){
+        return ERR_FAILURE;
+    }
+
+    if (msg_type == SERVER_CERTIFICATE){
+        return ERR_FAILURE;
+    }
+
+    if (msg_type == PREMASTER_SECRET){
+        return ERR_FAILURE;
+    }
+
+    if (msg_type == VERIFY_MASTER_SECRET){
+        return ERR_FAILURE;
+    }
+
+    if (msg_type == ENCRYPTED_MESSAGE){
+        return ERR_FAILURE;
+    }
+
+    /*
     if (read_result == -1) {
         printf("Error sending TLS message. Error code: %d \n", errno);
     }
@@ -512,6 +558,7 @@ receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
         read_result = -1; // set error return code.
     }
     return read_result;
+    */
 }
 
 
