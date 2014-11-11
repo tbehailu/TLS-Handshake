@@ -267,7 +267,7 @@ int main(int argc, char **argv) {
     decrypt_verify_master_secret(server_premaster, &psm_response, client_exp, client_mod);
 
 
-    // check that str(server_premaster) == local_master
+    // TODO: check that str(server_premaster) == local_master
     printf("server_premaster = %s, local_master = %s \n", server_premaster, local_master);
 
 
