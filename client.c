@@ -21,6 +21,9 @@ static void kill_handler(int signum);
 static int random_int();
 static void cleanup();
 
+/* Helper function, assigns into to char array. */
+static void assign (unsigned char *pass, uint32_t val);
+
 int main(int argc, char **argv) {
 
     /* Various set up code - declare vars, etc. */
@@ -142,19 +145,19 @@ int main(int argc, char **argv) {
 
     /* NOTE - THIS CODE IS NOT COMPLETE YET. */
     // 1. send Client hello
-    struct hello_message c_hello;
+    hello_message c_hello;
     c_hello.type = CLIENT_HELLO;
     c_hello.random = random_int();
     c_hello.cipher_suite = TLS_RSA_WITH_AES_128_ECB_SHA256;
-    exit_code = send_tls_message(sockfd, c_hello, HELLO_MSG_SIZE);
+    exit_code = send_tls_message(sockfd, &c_hello, HELLO_MSG_SIZE);
     if (exit_code < 0) {
         printf("caught error! TODO - quit here.");
     }
 
 
     // 2. receive Server hello
-    struct hello_message s_hello;
-    exit_code = receive_tls_message(sockfd, s_hello, HELLO_MSG_SIZE, SERVER_HELLO);
+    hello_message s_hello;
+    exit_code = receive_tls_message(sockfd, &s_hello, HELLO_MSG_SIZE, SERVER_HELLO);
     if (exit_code < 0) {
         printf("caught error! TODO - quit here.");
     }
@@ -162,17 +165,17 @@ int main(int argc, char **argv) {
 
 
     // 3. send client cert
-    struct cert_message c_cert;
+    cert_message c_cert;
     c_cert.type = CLIENT_CERTIFICATE;
-    memcpy(c_cert.cert, /* client_certificate goes here - use c_file, just read file. Might need to use gmp - string to mpz_t*/, RSA_MAX_LEN);
-    exit_code = send_tls_message(sockfd, c_cert, CERT_MSG_SIZE);
+    //memcpy(c_cert.cert, /* client_certificate goes here - use c_file, just read file. Might need to use gmp - string to mpz_t*/, RSA_MAX_LEN);
+    exit_code = send_tls_message(sockfd, &c_cert, CERT_MSG_SIZE);
     if (exit_code < 0) {
         printf("caught error! TODO - quit here.");
     }
 
     // 4. receive server cert
-    struct cert_message s_cert;
-    exit_code = receive_tls_message(sockfd, s_cert, CERT_MSG_SIZE, SERVER_CERTIFICATE);
+    cert_message s_cert;
+    exit_code = receive_tls_message(sockfd, &s_cert, CERT_MSG_SIZE, SERVER_CERTIFICATE);
     if (exit_code < 0) {
         printf("caught error! TODO - quit here.");
     }
@@ -186,7 +189,7 @@ int main(int argc, char **argv) {
     // 5. Compute premaster secret, send it to server, encrypted with server public key
 
     // prepare data structures
-    struct ps_msg psm;
+    ps_msg psm;
     psm.type = PREMASTER_SECRET;
     int ps = random_int();
     char plaintext_premaster[RSA_MAX_LEN]; // might not be plaintext
@@ -197,11 +200,11 @@ int main(int argc, char **argv) {
     mpz_init(encrypted_premaster);
 
     // start encrypting premaster
-    perform_rsa(&encrypted_premaster, ps, /* server exponent*/, /*server modulus*/); // encrypt with server key
-    psm.ps = encrypted_premaster; // copy to message
+    //perform_rsa(&encrypted_premaster, ps, /* server exponent*/, /*server modulus*/); // encrypt with server key
+    // psm.ps = encrypted_premaster; // copy to message
 
     // send the message
-    exit_code = send_tls_message(sockfd, psm, PS_MSG_SIZE);
+    exit_code = send_tls_message(sockfd, &psm, PS_MSG_SIZE);
     if (exit_code < 0) {
         printf("caught error! TODO - quit here.");
     }
@@ -211,8 +214,8 @@ int main(int argc, char **argv) {
     compute_master_secret(ps, c_hello.random, s_hello.random, &local_master);
 
     // 6.1 and now receive the server master, confirm it's the same
-    struct ps_msg psm_response;
-    exit_code = receive_tls_message(sockfd, psm_response, PS_MSG_SIZE, VERIFY_MASTER_SECRET);
+    ps_msg psm_response;
+    exit_code = receive_tls_message(sockfd, &psm_response, PS_MSG_SIZE, VERIFY_MASTER_SECRET);
     if (exit_code < 0) {
         printf("caught error! TODO - quit here.");
     }
@@ -389,54 +392,29 @@ decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, 
 void
 compute_master_secret(int ps, int client_random, int server_random, char *master_secret)
 {
-    // Note - hardcoding everything as 32 bit ints.
-
     // IMPORTANT - DEBUG THIS FUNCTION! It is untested and is likely buggy.
 
-    // build the massive data sequence - PS | client_random | server_random | PS
-    // so 128 bits of data.
-    char ps_char[8];
-    snprintf(ps_char, 4, "%2x", ps);
-    printf("ps_char: %s\n", ps_char);
-
-    // result
-    mpz_t result;
-    mpz_init(result);
-
     // ps
-    mpz_t pst;
-    mpz_init(pst);
-    mpz_set_si(pst, ps); // assign ps value to mpz
-    mpz_mul_2exp(pst, pst, 96); // ps << 96
-    mpz_add_ui(result, pst, 0);
-
+    unsigned char ps_array[8];
+    assign(ps_array, ps); // use assign from gentable. remember it's size 8.
 
     // client secret
-    mpz_t crt;
-    mpz_init(crt);
-    mpz_set_si(crt, client_random); // assign ps value to mpz
-    mpz_mul_2exp(crt, crt, 64); // crt << 64
-    mpz_add(result, result, crt);
+    unsigned char cli_array[8];
+    assign(cli_array, client_random); // use assign from gentable. remember it's size 8.
 
-    mpz_t srt;
-    mpz_init(srt);
-    mpz_set_si(srt, server_random); // assign ps value to mpz
-    mpz_mul_2exp(srt, srt, 32); // srt << 32
-    mpz_add(result, result, srt);
+    // server secret
+    unsigned char ser_array[8];
+    assign(ser_array, server_random); // use assign from gentable. remember it's size 8.
 
-    // ps
-    mpz_t pst2;
-    mpz_init(pst2);
-    mpz_set_si(pst2, ps); // assign ps value to mpz
-    mpz_add(result, result, pst2);
+    // add to hash
+    SHA256_CTX ctx;
+    sha256_init(&ctx);
+    sha256_update(&ctx, ps_array, 8);
+    sha256_update(&ctx, cli_array, 8);
+    sha256_update(&ctx, server_random, 8);
+    sha256_update(&ctx, ps_array, 8);
+    sha256_final(&ctx, master_secret);
 
-
-    // save to master_secret pointer. mpz to char string
-    mpz_get_str (master_secret, 16, result);
-
-    // do the hash
-
-    // return result
 }
 
 /*
@@ -672,4 +650,15 @@ cleanup()
 {
     close(sockfd);
     exit(1);
+}
+
+
+/* Assigns into to char array*/
+void assign (unsigned char *arr, uint32_t val)
+{
+    int i;
+    for (i = 7; i >= 0; i--) {
+        arr[i] = (unsigned char) val & 0xFF;
+        val >>= 8;
+    }
 }

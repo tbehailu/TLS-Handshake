@@ -1,4 +1,4 @@
-#include <stdio.h> 
+#include <stdio.h>
 #include <string.h>
 
 #define uchar unsigned char // 8-bit byte
