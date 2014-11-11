@@ -385,20 +385,15 @@ decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_
 void
 decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, mpz_t key_mod)
 {
-
     /* This code is not done. Be careful! */
 
-
     mpz_t ps;
-    mpz_init(ps);
-    mpz_set_str(ps, ms_ver->ps, 16);
+    mpz_init_set_str(ps, ms_ver->ps, 16);
 
     // perform the decryption
     perform_rsa(decrypted_ms, ps, key_exp, key_mod);
 
-    // compare decrypted_ms and locally stored master secret
-
-
+    // done?
 }
 
 /*
