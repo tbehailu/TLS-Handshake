@@ -266,8 +266,9 @@ int main(int argc, char **argv) {
     mpz_t server_premaster;
     decrypt_verify_master_secret(server_premaster, &psm_response, client_exp, client_mod);
 
-    // check that str(server_premaster) == local_master
 
+    // check that str(server_premaster) == local_master
+    printf("server_premaster = %s, local_master = %s \n", server_premaster, local_master);
 
 
 
@@ -522,23 +523,23 @@ receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
     }
 
     if (msg_type == CLIENT_HELLO){
-        return ERR_FAILURE;
+        // return ERR_OK; ??
     }
 
     if (msg_type == SERVER_HELLO){
-        return ERR_FAILURE;
+        // return ERR_OK;
     }
 
     if (msg_type == CLIENT_CERTIFICATE){
-        return ERR_FAILURE;
+        // return ERR_OK;
     }
 
     if (msg_type == SERVER_CERTIFICATE){
-        return ERR_FAILURE;
+        // return ERR_OK;
     }
 
     if (msg_type == PREMASTER_SECRET){
-        return ERR_FAILURE;
+        // return ERR_OK;
     }
 
     if (msg_type == VERIFY_MASTER_SECRET){
