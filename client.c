@@ -148,7 +148,7 @@ int main(int argc, char **argv) {
     hello_message c_hello;
     c_hello.type = CLIENT_HELLO;
     c_hello.random = random_int();
-    
+
     // print statement for write-up #2
     // printf("random int = %d\n",c_hello.random);
 
@@ -180,10 +180,10 @@ int main(int argc, char **argv) {
 
     // printf("c_file contents: %s\n", buffer);
 
-    mpz_t c_file_string;
-    mpz_init_set_str(c_file_string, buffer, 16);
+    //mpz_t c_file_string;
+    //mpz_init_set_str(c_file_string, buffer, 16);
     //memcpy(c_cert.cert, /* client_certificate goes here - use c_file, just read file. Might need to use gmp - string to mpz_t*/, RSA_MAX_LEN);
-    memcpy(c_cert.cert, c_file_string, RSA_MAX_LEN);
+    memcpy(c_cert.cert, buffer, RSA_MAX_LEN);
     exit_code = send_tls_message(sockfd, &c_cert, CERT_MSG_SIZE);
     if (exit_code < 0) {
         printf("caught error! TODO - quit here.");
@@ -207,12 +207,14 @@ int main(int argc, char **argv) {
     mpz_t decrypted_cert;
     mpz_init(decrypted_cert);
     decrypt_cert(decrypted_cert, &s_cert, ca_exp, ca_mod);
+    // printf("decrypted_cert: %s\n", decrypted_cert);
     char* server_cert_string = mpz_get_str(NULL, 16, decrypted_cert);
 
     // extract server exponent
     mpz_t server_exponent;
     mpz_init(server_exponent);
-    get_cert_exponent(server_exponent, server_cert_string);
+    printf("server_cert_string: %s, length: %d\n", server_cert_string, strlen(server_cert_string));
+    get_cert_exponent(server_exponent, server_cert_string); // gives seg fault
 
     // extract server mod
     mpz_t server_mod;
@@ -237,12 +239,9 @@ int main(int argc, char **argv) {
 
     char* encrypted_premaster_string = mpz_get_str(NULL, 16, encrypted_premaster);
 
-    mpz_t encrypted_pms;
-    mpz_init_set_str(encrypted_pms, encrypted_premaster_string, 16);
 
     /*** TODO: Double check how premaster is being set ****/
-    memcpy(psm.ps, encrypted_pms, RSA_MAX_LEN); // copy to message
-    // memcpy(psm.ps, encrypted_premaster_string, RSA_MAX_LEN); // copy to message
+    memcpy(psm.ps, encrypted_premaster_string, RSA_MAX_LEN); // copy to message
 
     // send the message
     exit_code = send_tls_message(sockfd, &psm, PS_MSG_SIZE);
@@ -379,11 +378,13 @@ int main(int argc, char **argv) {
 void
 decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_mod)
 {
+    printf("decrypting a certificate\n");
     mpz_t mpz_cert;
     mpz_init_set_str(mpz_cert, cert->cert, 16); // note, leading '0x' may cause issues.
 
     perform_rsa(decrypted_cert, mpz_cert, key_exp, key_mod);
 
+    printf("rsa done\n");
     // debug
     char* result_str = mpz_get_str(NULL, 16, decrypted_cert);
     int i = 0;
@@ -391,6 +392,7 @@ decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_
         printf("%c", hex_to_ascii(result_str[i], result_str[i+1]));
         i+=2;
     }
+    printf("done decrypting a certificate\n");
     // end debug
 }
 
@@ -447,8 +449,8 @@ compute_master_secret(int ps, int client_random, int server_random, unsigned cha
     assign(ser_array, server_random); // use assign from gentable. remember it's size 8.
 
     // add to hash
-    // Master secret = H(PS||clienthello.random||serverhello.random||PS)    
-    
+    // Master secret = H(PS||clienthello.random||serverhello.random||PS)
+
     // void sha256_update(SHA256_CTX *ctx, uchar data[], uint len)
 
     SHA256_CTX ctx;
@@ -497,28 +499,16 @@ send_tls_message(int socketno, void *msg, int msg_len)
 int
 receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
 {
-    // NOTE - msg_type is a constant defined in handshake.c. Depending on the argument, we are receiving different messages,
-    /* Possible values:
-    ERROR_MESSAGE
-    CLIENT_HELLO
-    SERVER_HELLO
-    CLIENT_CERTIFICATE
-    SERVER_CERTIFICATE
-    PREMASTER_SECRET
-    VERIFY_MASTER_SECRET
-    ENCRYPTED_MESSAGE
-    */
-    
     // debugging print statements
     // void * to int reference: http://stackoverflow.com/questions/1640423/error-cast-from-void-to-int-loses-precision
-    // printf("msg int = %d, msg_type = %d\n", (int) msg, msg_type);
+    printf("msg int = %d, msg_type = %d\n", (int) msg, msg_type);
 
 
     // TODO: Double-check
     int read_result = read(socketno, msg, msg_len);
     printf("read_result = %d, msg_len = %d\n", read_result, msg_len);
 
-    if (read_result != msg_len || msg_type == ERROR_MESSAGE){ // if bytes read is not correct length or msg_type is error, return error 
+    if (read_result != msg_len || msg_type == ERROR_MESSAGE){ // if bytes read is not correct length or msg_type is error, return error
         return ERR_FAILURE;
     }
 
@@ -535,6 +525,8 @@ receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
     }
 
     if (msg_type == SERVER_CERTIFICATE){
+        cert_message* ret = (struct cert_message*) msg;
+        printf("ret->cert: %s\n", ret->cert);
         // return ERR_OK;
     }
 
