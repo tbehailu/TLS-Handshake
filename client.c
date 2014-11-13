@@ -147,7 +147,7 @@ int main(int argc, char **argv) {
     int exit_code; // used for catching errors.
 
     /* NOTE - THIS CODE IS NOT COMPLETE YET. */
-    // 1. send Client hello
+    /* ---------  1. send Client hello ---------*/
     hello_message c_hello;
     c_hello.type = CLIENT_HELLO;
     c_hello.random = random_int();
@@ -162,7 +162,8 @@ int main(int argc, char **argv) {
     }
 
 
-    // 2. receive Server hello
+    /* ---------- 2. receive Server hello --------*/
+
     hello_message s_hello;
     exit_code = receive_tls_message(sockfd, &s_hello, HELLO_MSG_SIZE, SERVER_HELLO);
     if (exit_code < 0) {
@@ -171,7 +172,7 @@ int main(int argc, char **argv) {
     int server_random = s_hello.random;
 
 
-    // 3. send client cert
+    /* --------- 3. send client cert ----------*/
     cert_message c_cert;
     c_cert.type = CLIENT_CERTIFICATE;
 
@@ -190,7 +191,7 @@ int main(int argc, char **argv) {
         printf("caught error! TODO - quit here.");
     }
 
-    // 4. receive server cert
+    /* ----------  4. receive server cert ----------*/
     cert_message s_cert;
     exit_code = receive_tls_message(sockfd, &s_cert, CERT_MSG_SIZE, SERVER_CERTIFICATE);
     if (exit_code < 0) {
@@ -198,7 +199,7 @@ int main(int argc, char **argv) {
     }
 
     // TODO: find out how to get the hex part from CA_EXPONENT and CA_MODULUS so I don't have to hard code it in anymore
-    // 4.1 decrypt server certificate and extract server public key
+    /* -------- 4.1 decrypt server certificate and extract server public key -----*/
     // Get CA mod and exp
     mpz_t ca_exp;
     mpz_init(ca_exp);
@@ -248,7 +249,7 @@ int main(int argc, char **argv) {
 
     printf("we got cert mod!\n");
 
-    // 5. Compute premaster secret, send it to server, encrypted with server public key
+    /* -----  5. Compute premaster secret, send it to server, encrypted with server public key --------*/
 
     // prepare data structures
     ps_msg psm;
@@ -262,6 +263,7 @@ int main(int argc, char **argv) {
     mpz_init(encrypted_premaster);
     perform_rsa(encrypted_premaster, ps_mpz, server_exponent, server_mod); // encrypt with server key
 
+    printf("we encrypted the premaster!\n");
     
     char* encrypted_premaster_string = mpz_get_str(NULL, HEX_BASE, encrypted_premaster);
     // printf("encrypted_premaster_string: ");
@@ -278,9 +280,12 @@ int main(int argc, char **argv) {
 
     printf("we have sent the premaster secret!\n");
 
-    // 6. compute the local master secret
+    /* --------  6. compute the local master secret -------*/
+    
     unsigned char local_master[RSA_MAX_LEN];
     compute_master_secret(ps, c_hello.random, s_hello.random, local_master);
+
+    printf("computed master secret!\n");
 
     // 6.1 and now receive the server master, confirm it's the same
     ps_msg psm_response;
@@ -289,10 +294,13 @@ int main(int argc, char **argv) {
         printf("caught error! TODO - quit here.");
     }
 
+    printf("received the server master!, exit_code: %d\n", exit_code);
+
     mpz_t server_premaster;
+    mpz_init(server_exponent);
+    printVariable(psm_response.ps);
     decrypt_verify_master_secret(server_premaster, &psm_response, client_exp, client_mod);
 
-    printf("we have computed the premaster secret!\n");
 
     // TODO: check that str(server_premaster) == local_master
     printf("server_premaster = %s, local_master = %s \n", server_premaster, local_master);
@@ -408,14 +416,11 @@ decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_
 {
     // printf("decrypting a certificate\n");
 
-    // printCharArray(cert->cert);
     mpz_t mpz_cert;
     mpz_init(mpz_cert);
     mpz_set_str(mpz_cert, hex_to_str(cert->cert,RSA_MAX_LEN), 0); // note, leading '0x' may cause issues.t
     perform_rsa(decrypted_cert, mpz_cert, key_exp, key_mod);
     printCertificate(decrypted_cert);
-
-    // printf("rsa done\n");
 
     /*
     // debug
@@ -446,12 +451,16 @@ void
 decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, mpz_t key_mod)
 {
     /* This code is not done. Be careful! */
-
+    printf("verifying the master secret...\n");
     mpz_t ps;
-    mpz_init_set_str(ps, ms_ver->ps, 16);
-
+    mpz_init(ps);
+    // mpz_set_str(ca_exp, CA_EXPONENT,0);
+    // mpz_set_str(mpz_cert, hex_to_str(cert->cert,RSA_MAX_LEN), 0);
+    mpz_set_str(ps, hex_to_str(ms_ver->ps,RSA_MAX_LEN), 0);
+    printf("decrypting the master secret..\n");
     // perform the decryption
     perform_rsa(decrypted_ms, ps, key_exp, key_mod);
+    printCertificate(decrypted_ms);
 
     // done?
 }
@@ -469,11 +478,11 @@ void
 compute_master_secret(int ps, int client_random, int server_random, unsigned char *master_secret)
 {
     // IMPORTANT - DEBUG THIS FUNCTION! It is untested and is likely buggy.
-
     printf("computing the master secret..\n");
     // ps
     unsigned char ps_array[8];
     assign(ps_array, ps); // use assign from gentable. remember it's size 8.
+    
 
     // client secret
     unsigned char cli_array[8];
@@ -482,6 +491,7 @@ compute_master_secret(int ps, int client_random, int server_random, unsigned cha
     // server secret
     unsigned char ser_array[8];
     assign(ser_array, server_random); // use assign from gentable. remember it's size 8.
+
 
     // add to hash
     // Master secret = H(PS||clienthello.random||serverhello.random||PS)
@@ -496,7 +506,6 @@ compute_master_secret(int ps, int client_random, int server_random, unsigned cha
     sha256_update(&ctx, ser_array, 16);
     sha256_update(&ctx, ps_array, 16);
     sha256_final(&ctx, master_secret);
-
 }
 
 /*
