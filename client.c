@@ -175,19 +175,6 @@ int main(int argc, char **argv) {
     cert_message c_cert;
     c_cert.type = CLIENT_CERTIFICATE;
 
-    printf("client certificate: ");
-    // printCharArray(c_cert.cert);
-    mpz_t client_cert;
-    mpz_init(client_cert);
-
-    mpz_t c_msg;
-    mpz_init(c_msg);
-    mpz_init_set_str(c_msg, c_cert.cert, 0);
-    perform_rsa(client_cert, c_msg, client_exp, client_mod);
-    printCertificate(client_cert);
-    mpz_out_str(stdout, 10, client_cert);
-    printf("\n");
-
     /****** TODO: Double check *******/
 
     // read c_file into buffer
@@ -232,24 +219,18 @@ int main(int argc, char **argv) {
     mpz_init(decrypted_cert);
     decrypt_cert(decrypted_cert, &s_cert, ca_exp, ca_mod);
     
-    printf("decrypted_cert: ");
-    mpz_out_str(stdout, 10, decrypted_cert);
-    printf("\n");
+    // printf("decrypted_cert: ");
+    // mpz_out_str(stdout, 10, decrypted_cert);
+    // printf("\n");
 
-    // printf("we made it here!\n");
     // printVariable(mpz_get_str(NULL, HEX_BASE, decrypted_cert));
     // mpz_t test;
     // mpz_init_set_str(test, mpz_get_str(NULL, HEX_BASE, decrypted_cert), 16);
     // mpz_out_str(stdout,10,test);
     // printf("\n");
 
-    printCertificate(decrypted_cert);
-
     // save decrypted_cert into a string
     char *server_cert_string = mpz_get_str(NULL, HEX_BASE, decrypted_cert);
-
-    printf("server_cert_string: ");
-    printCharArray(server_cert_string);
 
     // extract server exponent
     mpz_t server_exponent;
@@ -266,9 +247,8 @@ int main(int argc, char **argv) {
     get_cert_modulus(server_mod, server_cert_string);
 
     printf("we got cert mod!\n");
-    
-    // 5. Compute premaster secret, send it to server, encrypted with server public key
 
+    // 5. Compute premaster secret, send it to server, encrypted with server public key
 
     // prepare data structures
     ps_msg psm;
@@ -283,9 +263,9 @@ int main(int argc, char **argv) {
     perform_rsa(encrypted_premaster, ps_mpz, server_exponent, server_mod); // encrypt with server key
 
     
-    char* encrypted_premaster_string = mpz_get_str(NULL, 16, encrypted_premaster);
-    printf("encrypted_premaster_string: ");
-    printVariable(encrypted_premaster_string);
+    char* encrypted_premaster_string = mpz_get_str(NULL, HEX_BASE, encrypted_premaster);
+    // printf("encrypted_premaster_string: ");
+    // printVariable(encrypted_premaster_string);
 
     /*** TODO: Double check how premaster is being set ****/
     memcpy(psm.ps, encrypted_premaster_string, RSA_MAX_LEN); // copy to message
@@ -296,7 +276,7 @@ int main(int argc, char **argv) {
         printf("caught error! TODO - quit here.");
     }
 
-
+    printf("we have sent the premaster secret!\n");
 
     // 6. compute the local master secret
     unsigned char local_master[RSA_MAX_LEN];
@@ -312,6 +292,7 @@ int main(int argc, char **argv) {
     mpz_t server_premaster;
     decrypt_verify_master_secret(server_premaster, &psm_response, client_exp, client_mod);
 
+    printf("we have computed the premaster secret!\n");
 
     // TODO: check that str(server_premaster) == local_master
     printf("server_premaster = %s, local_master = %s \n", server_premaster, local_master);
@@ -489,6 +470,7 @@ compute_master_secret(int ps, int client_random, int server_random, unsigned cha
 {
     // IMPORTANT - DEBUG THIS FUNCTION! It is untested and is likely buggy.
 
+    printf("computing the master secret..\n");
     // ps
     unsigned char ps_array[8];
     assign(ps_array, ps); // use assign from gentable. remember it's size 8.
@@ -683,47 +665,47 @@ perform_rsa(mpz_t result, mpz_t message, mpz_t e, mpz_t n)
 static int
 random_int()
 {
-    srand(time(NULL));
-    return rand();
+  srand(time(NULL));
+  return rand();
 }
 
 /*
-* \brief                 Returns ascii string from a number in mpz_t form.
-*
-* \param output_str      A pointer to the output string.
-* \param input           The number to convert to ascii.
-*/
+ * \brief                 Returns ascii string from a number in mpz_t form.
+ *
+ * \param output_str      A pointer to the output string.
+ * \param input           The number to convert to ascii.
+ */
 void
 mpz_get_ascii(char *output_str, mpz_t input)
 {
-    int i,j;
-    char *result_str;
-    result_str = mpz_get_str(NULL, HEX_BASE, input);
-    i = 0;
-    j = 0;
-    while (result_str[i] != '\0') {
-        output_str[j] = hex_to_ascii(result_str[i], result_str[i+1]);
-        j += 1;
-        i += 2;
-    }
+  int i,j;
+  char *result_str;
+  result_str = mpz_get_str(NULL, HEX_BASE, input);
+  i = 0;
+  j = 0;
+  while (result_str[i] != '\0') {
+    output_str[j] = hex_to_ascii(result_str[i], result_str[i+1]);
+    j += 1;
+    i += 2;
+  }
 }
 
 /*
-* \brief                  Returns a pointer to a string containing the
-*                         characters representing the input hex value.
-*
-* \param data             The input hex value.
-* \param data_len         The length of the data in bytes.
-*/
+ * \brief                  Returns a pointer to a string containing the
+ *                         characters representing the input hex value.
+ *
+ * \param data             The input hex value.
+ * \param data_len         The length of the data in bytes.
+ */
 char
 *hex_to_str(char *data, int data_len)
 {
-    int i;
-    char *output_str = calloc(1+2*data_len, sizeof(char));
-    for (i = 0; i < data_len; i += 1) {
-        snprintf(output_str+2*i, 3, "%02X", (unsigned int) (data[i] & 0xFF));
-    }
-    return output_str;
+  int i;
+  char *output_str = calloc(1+2*data_len, sizeof(char));
+  for (i = 0; i < data_len; i += 1) {
+    snprintf(output_str+2*i, 3, "%02X", (unsigned int) (data[i] & 0xFF));
+  }
+  return output_str;
 }
 
 /* Return the public key exponent given the decrypted certificate as string. */
