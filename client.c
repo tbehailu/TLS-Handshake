@@ -175,6 +175,9 @@ int main(int argc, char **argv) {
     cert_message c_cert;
     c_cert.type = CLIENT_CERTIFICATE;
 
+    // mpz_t temp_cert;
+    // mpz_init_set_str(temp_cert,c_cert.cert,16);
+    // printCertificate(temp_cert);
     /****** TODO: Double check *******/
 
     // read c_file into buffer
@@ -184,6 +187,7 @@ int main(int argc, char **argv) {
     // printf("c_file contents: %s\n", buffer);
     //memcpy(c_cert.cert, /* client_certificate goes here - use c_file, just read file. Might need to use gmp - string to mpz_t*/, RSA_MAX_LEN);
     memcpy(c_cert.cert, buffer, RSA_MAX_LEN);
+
     exit_code = send_tls_message(sockfd, &c_cert, CERT_MSG_SIZE);
     if (exit_code < 0) {
         printf("caught error! TODO - quit here.");
@@ -202,17 +206,18 @@ int main(int argc, char **argv) {
     mpz_t ca_exp;
     mpz_init(ca_exp);
     // mpz_set_str(ca_exp, "65537", 10); // 0x10001 = 65537
-    mpz_set_str(ca_exp, "10001", 16); 
+    printf("%s\n", CA_EXPONENT);
+    mpz_set_str(ca_exp, CA_EXPONENT,0); 
     mpz_t ca_mod;
     mpz_init(ca_mod);
-    mpz_set_str(ca_mod, "00bb500eb136a10c6ede5ff77270d6e5f8dbf0b92dd7fe1a5df274503cb7435b373442d5a70a68bdfe45131667ffa3d62cd387274c607690d045682ba50abb2f4459bbdb3677eb485fd94955f7e0a3c8bfc5781be004aa80dcfe5deea7eafb2f0dbbda2e0a490f2777dc5a754db62777cbdcfd452396fd0c3c37ee6f5cf96b9ba2eb9274c7f7798cb50c3f778ff1d683407949443e0150c208f078b8ecfa6b93c1203cc0b6194caf1a724477f81b3aae1cf62bde266ffe19d3f77033d5cd7a90ea442dab4f97631da42c474dad2379314403419fd7431db844ef57f3660375563d5ef85dc404f20d473c66b6f47b296a304506b76d9acb74f37368c59d3485ddd2b3effa7e29bcd0faf3cdf294b70d1e2b312b7493a99a22fbba5e1dd4f89bb10e75c53b29d9a1075153717bf52b3b44b9cbc06c45afc5b3d029294df2e73579a8e64898aeb8bd89ea4ba5a3a8c507ddc09f38711c6132386ca5497199f01a092bb3e323b841b5ed23eea239bd6c4fa738ec575a1051a38f2691b235343ff9f2740498cd391aaccc03323a3ff06d4406c2eb88ff73392dd0f23c28f0f7f60c87c0c40a74fd4c28fdc352c3b506acca9fb1295c0117ddec5eb8d7304466855e660cb42f29d7be6eff5d443544fb67f3ff1e8340369cc4389e159a11e01b81dd4b4faea192bfdcbf87afbe7a0400f954c3da8380ee664c4be89ee476ee318d557095", 16);
+    mpz_set_str(ca_mod, CA_MODULUS,0);
 
     printf("ca_exp: ");
     mpz_out_str(stdout, 10, ca_exp);
     printf("\n");
-    // printf("ca_mod: ");
-    // mpz_out_str(stdout, 10, ca_mod);
-    // printf("\n");
+    printf("ca_mod: ");
+    mpz_out_str(stdout, 10, ca_mod);
+    printf("\n");
 
     printf("s_cert.cert = ");
     // printf("%s\n", s_cert.cert);
@@ -552,11 +557,11 @@ receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
     // void * to int reference: http://stackoverflow.com/questions/1640423/error-cast-from-void-to-int-loses-precision
     int type_of_msg = *((int *)msg);
 
-    printf("msg.type = %d, msg_type = %d\n", type_of_msg, msg_type);
+    // printf("msg.type = %d, msg_type = %d\n", type_of_msg, msg_type);
 
     // TODO: Double-check
     int read_result = read(socketno, msg, msg_len);
-    printf("read_result = %d, msg_len = %d\n", read_result, msg_len);
+    // printf("read_result = %d, msg_len = %d\n", read_result, msg_len);
 
     if (read_result != msg_len || msg_type == ERROR_MESSAGE){ // if bytes read is not correct length or msg_type is error, return error
         return ERR_FAILURE;
