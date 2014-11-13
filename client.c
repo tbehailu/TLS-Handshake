@@ -22,6 +22,7 @@ static int random_int();
 static void cleanup();
 void printVariable(char *input);
 void printCertificate(mpz_t result);
+void printCharArray(char *arr);
 
 /* Helper function, assigns into to char array. */
 static void assign (unsigned char *pass, uint32_t val);
@@ -163,7 +164,6 @@ int main(int argc, char **argv) {
 
     // 2. receive Server hello
     hello_message s_hello;
-    printf("s_hello.type: %x\n", s_hello.type);
     exit_code = receive_tls_message(sockfd, &s_hello, HELLO_MSG_SIZE, SERVER_HELLO);
     if (exit_code < 0) {
         printf("caught error! TODO - quit here.");
@@ -175,9 +175,19 @@ int main(int argc, char **argv) {
     cert_message c_cert;
     c_cert.type = CLIENT_CERTIFICATE;
 
-    // mpz_t temp_cert;
-    // mpz_init_set_str(temp_cert,c_cert.cert,16);
-    // printCertificate(temp_cert);
+    printf("client certificate: ");
+    // printCharArray(c_cert.cert);
+    mpz_t client_cert;
+    mpz_init(client_cert);
+
+    mpz_t c_msg;
+    mpz_init(c_msg);
+    mpz_init_set_str(c_msg, c_cert.cert, 0);
+    perform_rsa(client_cert, c_msg, client_exp, client_mod);
+    printCertificate(client_cert);
+    mpz_out_str(stdout, 10, client_cert);
+    printf("\n");
+
     /****** TODO: Double check *******/
 
     // read c_file into buffer
@@ -205,23 +215,18 @@ int main(int argc, char **argv) {
     // Get CA mod and exp
     mpz_t ca_exp;
     mpz_init(ca_exp);
-    // mpz_set_str(ca_exp, "65537", 10); // 0x10001 = 65537
-    printf("%s\n", CA_EXPONENT);
-    mpz_set_str(ca_exp, CA_EXPONENT,0); 
+    mpz_set_str(ca_exp, CA_EXPONENT,0); // 0x10001 = 65537
     mpz_t ca_mod;
     mpz_init(ca_mod);
-    mpz_set_str(ca_mod, CA_MODULUS,0);
+    mpz_set_str(ca_mod, CA_MODULUS, 0);
 
     printf("ca_exp: ");
     mpz_out_str(stdout, 10, ca_exp);
     printf("\n");
-    printf("ca_mod: ");
-    mpz_out_str(stdout, 10, ca_mod);
-    printf("\n");
+    // printf("ca_mod: ");
+    // mpz_out_str(stdout, 10, ca_mod);
+    // printf("\n");
 
-    printf("s_cert.cert = ");
-    // printf("%s\n", s_cert.cert);
-    printVariable(s_cert.cert);
     // decrypt server
     mpz_t decrypted_cert;
     mpz_init(decrypted_cert);
@@ -239,12 +244,12 @@ int main(int argc, char **argv) {
     // printf("\n");
 
     printCertificate(decrypted_cert);
+
     // save decrypted_cert into a string
     char *server_cert_string = mpz_get_str(NULL, HEX_BASE, decrypted_cert);
-    printf("we made it here!\n");
+
     printf("server_cert_string: ");
-    printVariable(server_cert_string);
-    printf("we got the server cert string: %s\n", strchr(server_cert_string,'s'));
+    printCharArray(server_cert_string);
 
     // extract server exponent
     mpz_t server_exponent;
@@ -260,7 +265,8 @@ int main(int argc, char **argv) {
     mpz_init(server_mod);
     get_cert_modulus(server_mod, server_cert_string);
 
-
+    printf("we got cert mod!\n");
+    
     // 5. Compute premaster secret, send it to server, encrypted with server public key
 
 
@@ -420,19 +426,13 @@ void
 decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_mod)
 {
     // printf("decrypting a certificate\n");
+
+    // printCharArray(cert->cert);
     mpz_t mpz_cert;
     mpz_init(mpz_cert);
-    printf("cert->cert:");
-    printVariable(hex_to_str(cert->cert,RSA_MAX_LEN));
-    mpz_set_str(mpz_cert, hex_to_str("0x4572726f723a20436572746966696361",16), 16); // note, leading '0x' may cause issues.t
-    printf("mpz_cert:");
-    mpz_out_str(stdout, RSA_MAX_LEN, mpz_cert);
-    printf("\n");
+    mpz_set_str(mpz_cert, hex_to_str(cert->cert,RSA_MAX_LEN), 0); // note, leading '0x' may cause issues.t
     perform_rsa(decrypted_cert, mpz_cert, key_exp, key_mod);
-    // printf("after: %x\n", decrypted_cert);
-
-    // printf("mpz_cert: %d\n", mpz_cert);
-    // printf("decrypted_cert: %s\n", hex_to_str(decrypted_cert, RSA_MAX_LEN));
+    printCertificate(decrypted_cert);
 
     // printf("rsa done\n");
 
@@ -727,42 +727,80 @@ char
 }
 
 /* Return the public key exponent given the decrypted certificate as string. */
-void
+int
 get_cert_exponent(mpz_t result, char *cert)
 {
-    char *srch, *srch2;
-    char exponent[RSA_MAX_LEN/2];
-    memset(exponent, 0, RSA_MAX_LEN/2);
-    srch = strchr(cert, '\n');
-    srch += 1;
-    srch = strchr(srch, '\n');
-    srch += 1;
-    srch = strchr(srch, '\n');
-    srch += 1;
-    srch = strchr(srch, ':');
-    srch += 2;
-    srch2 = strchr(srch, '\n');
-    strncpy(exponent, srch, srch2-srch);
-    mpz_set_str(result, exponent, 0);
+  int err;
+  char *srch, *srch2;
+  char exponent[RSA_MAX_LEN/2];
+  memset(exponent, 0, RSA_MAX_LEN/2);
+  srch = strchr(cert, '\n');
+  if (srch == NULL) {
+    return ERR_FAILURE;
+  }
+  srch += 1;
+  srch = strchr(srch, '\n');
+  if (srch == NULL) {
+    return ERR_FAILURE;
+  }
+  srch += 1;
+  srch = strchr(srch, '\n');
+  if (srch == NULL) {
+    return ERR_FAILURE;
+  }
+  srch += 1;
+  srch = strchr(srch, ':');
+  if (srch == NULL) {
+    return ERR_FAILURE;
+  }
+  srch += 2;
+  srch2 = strchr(srch, '\n');
+  if (srch2 == NULL) {
+    return ERR_FAILURE;
+  }
+  strncpy(exponent, srch, srch2-srch);
+  err = mpz_set_str(result, exponent, 0);
+  if (err == -1) {
+    return ERR_FAILURE;
+  }
+  return ERR_OK;
 }
 
 /* Return the public key modulus given the decrypted certificate as string. */
-void
+int
 get_cert_modulus(mpz_t result, char *cert)
 {
-    char *srch, *srch2;
-    char modulus[RSA_MAX_LEN/2];
-    memset(modulus, 0, RSA_MAX_LEN/2);
-    srch = strchr(cert, '\n');
-    srch += 1;
-    srch = strchr(srch, '\n');
-    srch += 1;
-    srch = strchr(srch, ':');
-    srch += 2;
-    srch2 = strchr(srch, '\n');
-    strncpy(modulus, srch, srch2-srch);
-    mpz_set_str(result, modulus, 0);
+  int err;
+  char *srch, *srch2;
+  char modulus[RSA_MAX_LEN/2];
+  memset(modulus, 0, RSA_MAX_LEN/2);
+  srch = strchr(cert, '\n');
+  if (srch == NULL) {
+    return ERR_FAILURE;
+  }
+  srch += 1;
+  srch = strchr(srch, '\n');
+  if (srch == NULL) {
+    return ERR_FAILURE;
+  }
+  srch += 1;
+  srch = strchr(srch, ':');
+  if (srch == NULL) {
+    return ERR_FAILURE;
+  }
+  srch += 2;
+  srch2 = strchr(srch, '\n');
+  if (srch2 == NULL) {
+    return ERR_FAILURE;
+  }
+  strncpy(modulus, srch, srch2-srch);
+  err = mpz_set_str(result, modulus, 0);
+  if (err == -1) {
+    return ERR_FAILURE;
+  }
+  return ERR_OK;
 }
+
 
 /* Prints the usage string for this program and exits. */
 static void
@@ -841,4 +879,14 @@ void printCertificate(mpz_t result){
         printf("%c", hex_to_ascii(result_str[i], result_str[i+1]));
         i+=2;
     }
+    printf("\n");
+}
+
+void printCharArray(char *arr){
+    int i = 0;
+    while(arr[i] != '\0') {
+        printf("%c", hex_to_ascii(arr[i], arr[i+1]));
+        i+=2;
+    }
+    printf("\n");
 }
