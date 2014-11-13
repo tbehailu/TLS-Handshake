@@ -20,6 +20,7 @@ static void usage();
 static void kill_handler(int signum);
 static int random_int();
 static void cleanup();
+void printVariable(char *input);
 
 /* Helper function, assigns into to char array. */
 static void assign (unsigned char *pass, uint32_t val);
@@ -161,6 +162,7 @@ int main(int argc, char **argv) {
 
     // 2. receive Server hello
     hello_message s_hello;
+    printf("s_hello.type: %x\n", s_hello.type);
     exit_code = receive_tls_message(sockfd, &s_hello, HELLO_MSG_SIZE, SERVER_HELLO);
     if (exit_code < 0) {
         printf("caught error! TODO - quit here.");
@@ -179,9 +181,6 @@ int main(int argc, char **argv) {
     fread(buffer, CERT_MSG_SIZE, 1, c_file);
 
     // printf("c_file contents: %s\n", buffer);
-
-    //mpz_t c_file_string;
-    //mpz_init_set_str(c_file_string, buffer, 16);
     //memcpy(c_cert.cert, /* client_certificate goes here - use c_file, just read file. Might need to use gmp - string to mpz_t*/, RSA_MAX_LEN);
     memcpy(c_cert.cert, buffer, RSA_MAX_LEN);
     exit_code = send_tls_message(sockfd, &c_cert, CERT_MSG_SIZE);
@@ -196,25 +195,58 @@ int main(int argc, char **argv) {
         printf("caught error! TODO - quit here.");
     }
 
+    // TODO: find out how to get the hex part from CA_EXPONENT and CA_MODULUS so I don't have to hard code it in anymore
     // 4.1 decrypt server certificate and extract server public key
     // Get CA mod and exp
     mpz_t ca_exp;
-    mpz_init_set_str(ca_exp, CA_EXPONENT, 16);
+    mpz_init(ca_exp);
+    // mpz_set_str(ca_exp, "65537", 10); // 0x10001 = 65537
+    mpz_set_str(ca_exp, "10001", 16); 
     mpz_t ca_mod;
-    mpz_init_set_str(ca_mod, CA_MODULUS, 16);
+    mpz_init(ca_mod);
+    mpz_set_str(ca_mod, "00bb500eb136a10c6ede5ff77270d6e5f8dbf0b92dd7fe1a5df274503cb7435b373442d5a70a68bdfe45131667ffa3d62cd387274c607690d045682ba50abb2f4459bbdb3677eb485fd94955f7e0a3c8bfc5781be004aa80dcfe5deea7eafb2f0dbbda2e0a490f2777dc5a754db62777cbdcfd452396fd0c3c37ee6f5cf96b9ba2eb9274c7f7798cb50c3f778ff1d683407949443e0150c208f078b8ecfa6b93c1203cc0b6194caf1a724477f81b3aae1cf62bde266ffe19d3f77033d5cd7a90ea442dab4f97631da42c474dad2379314403419fd7431db844ef57f3660375563d5ef85dc404f20d473c66b6f47b296a304506b76d9acb74f37368c59d3485ddd2b3effa7e29bcd0faf3cdf294b70d1e2b312b7493a99a22fbba5e1dd4f89bb10e75c53b29d9a1075153717bf52b3b44b9cbc06c45afc5b3d029294df2e73579a8e64898aeb8bd89ea4ba5a3a8c507ddc09f38711c6132386ca5497199f01a092bb3e323b841b5ed23eea239bd6c4fa738ec575a1051a38f2691b235343ff9f2740498cd391aaccc03323a3ff06d4406c2eb88ff73392dd0f23c28f0f7f60c87c0c40a74fd4c28fdc352c3b506acca9fb1295c0117ddec5eb8d7304466855e660cb42f29d7be6eff5d443544fb67f3ff1e8340369cc4389e159a11e01b81dd4b4faea192bfdcbf87afbe7a0400f954c3da8380ee664c4be89ee476ee318d557095", 16);
 
+    printf("ca_exp: ");
+    mpz_out_str(stdout, 10, ca_exp);
+    printf("\n");
+    // printf("ca_mod: ");
+    // mpz_out_str(stdout, 10, ca_mod);
+    // printf("\n");
+
+    printf("s_cert before:");
+    // printf("%s\n", s_cert.cert);
+    printVariable(s_cert.cert);
     // decrypt server
     mpz_t decrypted_cert;
     mpz_init(decrypted_cert);
     decrypt_cert(decrypted_cert, &s_cert, ca_exp, ca_mod);
     // printf("decrypted_cert: %s\n", decrypted_cert);
-    char* server_cert_string = mpz_get_str(NULL, 16, decrypted_cert);
+    
+    // printf("decrypted_cert: ");
+    // mpz_out_str(stdout, 10, decrypted_cert);
+    // printf("\n");
+    printf("we made it here!\n");
+    // char server_cert_string[RSA_MAX_LEN];
+    // mpz_get_ascii(server_cert_string, decrypted_cert);
+    // printf("server_cert_string: ");
+    // printVariable(server_cert_string);
+    // printf("\n");
+    // printVariable(mpz_get_str(NULL, HEX_BASE, decrypted_cert));
+    // mpz_t test;
+    // mpz_init_set_str(test, mpz_get_str(NULL, HEX_BASE, decrypted_cert), 16);
+    // mpz_out_str(stdout,10,test);
+    // printf("\n");
+
+    char *server_cert_string = mpz_get_str(NULL, HEX_BASE, decrypted_cert);
 
     // extract server exponent
     mpz_t server_exponent;
     mpz_init(server_exponent);
-    printf("server_cert_string: %s, length: %d\n", server_cert_string, strlen(server_cert_string));
+    // printf("server_cert_string: %s, length: %d\n", server_cert_string, strlen(server_cert_string));
+    // get_cert_exponent(mpz_t result, char *cert)
     get_cert_exponent(server_exponent, server_cert_string); // gives seg fault
+    
+    printf("we made it here!\n");
 
     // extract server mod
     mpz_t server_mod;
@@ -237,8 +269,10 @@ int main(int argc, char **argv) {
     mpz_init(encrypted_premaster);
     perform_rsa(encrypted_premaster, ps_mpz, server_exponent, server_mod); // encrypt with server key
 
+    
     char* encrypted_premaster_string = mpz_get_str(NULL, 16, encrypted_premaster);
-
+    printf("encrypted_premaster_string: ");
+    printVariable(encrypted_premaster_string);
 
     /*** TODO: Double check how premaster is being set ****/
     memcpy(psm.ps, encrypted_premaster_string, RSA_MAX_LEN); // copy to message
@@ -378,13 +412,24 @@ int main(int argc, char **argv) {
 void
 decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_mod)
 {
-    printf("decrypting a certificate\n");
+    // printf("decrypting a certificate\n");
     mpz_t mpz_cert;
-    mpz_init_set_str(mpz_cert, cert->cert, 16); // note, leading '0x' may cause issues.
-
+    mpz_init(mpz_cert);
+    printf("cert->cert:");
+    printVariable(hex_to_str(cert->cert,RSA_MAX_LEN));
+    mpz_set_str(mpz_cert, hex_to_str("0x4572726f723a20436572746966696361",16), 16); // note, leading '0x' may cause issues.t
+    printf("mpz_cert:");
+    mpz_out_str(stdout, RSA_MAX_LEN, mpz_cert);
+    printf("\n");
     perform_rsa(decrypted_cert, mpz_cert, key_exp, key_mod);
+    // printf("after: %x\n", decrypted_cert);
 
-    printf("rsa done\n");
+    // printf("mpz_cert: %d\n", mpz_cert);
+    // printf("decrypted_cert: %s\n", hex_to_str(decrypted_cert, RSA_MAX_LEN));
+
+    // printf("rsa done\n");
+
+    /*
     // debug
     char* result_str = mpz_get_str(NULL, 16, decrypted_cert);
     int i = 0;
@@ -394,6 +439,7 @@ decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_
     }
     printf("done decrypting a certificate\n");
     // end debug
+    */
 }
 
 /*
@@ -453,12 +499,13 @@ compute_master_secret(int ps, int client_random, int server_random, unsigned cha
 
     // void sha256_update(SHA256_CTX *ctx, uchar data[], uint len)
 
+
     SHA256_CTX ctx;
     sha256_init(&ctx);
-    sha256_update(&ctx, ps_array, 8);
-    sha256_update(&ctx, cli_array, 8);
-    sha256_update(&ctx, ser_array, 8);
-    sha256_update(&ctx, ps_array, 8);
+    sha256_update(&ctx, ps_array, 16);
+    sha256_update(&ctx, cli_array, 16);
+    sha256_update(&ctx, ser_array, 16);
+    sha256_update(&ctx, ps_array, 16);
     sha256_final(&ctx, master_secret);
 
 }
@@ -501,8 +548,9 @@ receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
 {
     // debugging print statements
     // void * to int reference: http://stackoverflow.com/questions/1640423/error-cast-from-void-to-int-loses-precision
-    printf("msg int = %d, msg_type = %d\n", (int) msg, msg_type);
+    int type_of_msg = *((int *)msg);
 
+    printf("msg.type = %d, msg_type = %d\n", type_of_msg, msg_type);
 
     // TODO: Double-check
     int read_result = read(socketno, msg, msg_len);
@@ -512,35 +560,41 @@ receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
         return ERR_FAILURE;
     }
 
-    if (msg_type == CLIENT_HELLO){
-        // return ERR_OK; ??
+    if (type_of_msg == msg_type){
+        return ERR_OK;
     }
 
-    if (msg_type == SERVER_HELLO){
-        // return ERR_OK;
-    }
+    return ERR_FAILURE;
 
-    if (msg_type == CLIENT_CERTIFICATE){
-        // return ERR_OK;
-    }
+    // if (msg_type == CLIENT_HELLO){
+    //     // return ERR_OK; ??
+    // }
 
-    if (msg_type == SERVER_CERTIFICATE){
-        cert_message* ret = (struct cert_message*) msg;
-        printf("ret->cert: %s\n", ret->cert);
-        // return ERR_OK;
-    }
+    // if (msg_type == SERVER_HELLO){
+    //     // return ERR_OK;
+    // }
 
-    if (msg_type == PREMASTER_SECRET){
-        // return ERR_OK;
-    }
+    // if (msg_type == CLIENT_CERTIFICATE){
+    //     // return ERR_OK;
+    // }
 
-    if (msg_type == VERIFY_MASTER_SECRET){
-        return ERR_FAILURE;
-    }
+    // if (msg_type == SERVER_CERTIFICATE){
+    //     // cert_message* ret = (struct cert_message*) msg;
+    //     // printf("ret->cert: %s\n", ret->cert);
+    //     // return ERR_OK;
+    // }
 
-    if (msg_type == ENCRYPTED_MESSAGE){
-        return ERR_FAILURE;
-    }
+    // if (msg_type == PREMASTER_SECRET){
+    //     // return ERR_OK;
+    // }
+
+    // if (msg_type == VERIFY_MASTER_SECRET){
+    //     return ERR_OK;
+    // }
+
+    // if (msg_type == ENCRYPTED_MESSAGE){
+    //     return ERR_OK;
+    // }
 
     /*
     if (read_result == -1) {
@@ -578,9 +632,12 @@ static int is_odd(mpz_t d) {
 *
 * Fill in this function with your proj0 solution or see staff solutions.
 */
+
+
 static void
 perform_rsa(mpz_t result, mpz_t message, mpz_t e, mpz_t n)
 {
+ /*
     mpz_set_ui(result, 1ul);
     while (mpz_cmp_ui(e, 0ul) > 0) {
         if (is_odd(e)) {
@@ -591,6 +648,26 @@ perform_rsa(mpz_t result, mpz_t message, mpz_t e, mpz_t n)
         mpz_mod(message, message, n);
         mpz_div_ui(e, e, 2);
     }
+*/
+    /* Checking with staff solution to proj0 */
+    int odd_num;
+
+    mpz_set_str(result, "1", 10);
+    odd_num = mpz_odd_p(e);
+    while (mpz_cmp_ui(e, 0) > 0) {
+    if (odd_num) {
+      mpz_mul(result, result, message);
+      mpz_mod(result, result, n);
+      mpz_sub_ui(e, e, 1);
+    }
+    mpz_mul(message, message, message);
+    mpz_mod(message, message, n);
+    mpz_div_ui(e, e, 2);
+    odd_num = mpz_odd_p(e);
+  }
+  printf("perform_rsa output: ");
+  mpz_out_str (stdout, 10, result);
+  printf("\n");
 }
 
 
@@ -738,4 +815,12 @@ void assign (unsigned char *arr, uint32_t val)
         arr[i] = (unsigned char) val & 0xFF;
         val >>= 8;
     }
+}
+
+void printVariable(char *input){
+    int i;
+    for (i = 0; i < 16; i++) {
+        printf("%02x", input[i]);
+    }
+    printf("\n");
 }
