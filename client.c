@@ -21,6 +21,7 @@ static void kill_handler(int signum);
 static int random_int();
 static void cleanup();
 void printVariable(char *input);
+void printCertificate(mpz_t result);
 
 /* Helper function, assigns into to char array. */
 static void assign (unsigned char *pass, uint32_t val);
@@ -213,31 +214,32 @@ int main(int argc, char **argv) {
     // mpz_out_str(stdout, 10, ca_mod);
     // printf("\n");
 
-    printf("s_cert before:");
+    printf("s_cert.cert = ");
     // printf("%s\n", s_cert.cert);
     printVariable(s_cert.cert);
     // decrypt server
     mpz_t decrypted_cert;
     mpz_init(decrypted_cert);
     decrypt_cert(decrypted_cert, &s_cert, ca_exp, ca_mod);
-    // printf("decrypted_cert: %s\n", decrypted_cert);
     
-    // printf("decrypted_cert: ");
-    // mpz_out_str(stdout, 10, decrypted_cert);
-    // printf("\n");
-    printf("we made it here!\n");
-    // char server_cert_string[RSA_MAX_LEN];
-    // mpz_get_ascii(server_cert_string, decrypted_cert);
-    // printf("server_cert_string: ");
-    // printVariable(server_cert_string);
-    // printf("\n");
+    printf("decrypted_cert: ");
+    mpz_out_str(stdout, 10, decrypted_cert);
+    printf("\n");
+
+    // printf("we made it here!\n");
     // printVariable(mpz_get_str(NULL, HEX_BASE, decrypted_cert));
     // mpz_t test;
     // mpz_init_set_str(test, mpz_get_str(NULL, HEX_BASE, decrypted_cert), 16);
     // mpz_out_str(stdout,10,test);
     // printf("\n");
 
+    printCertificate(decrypted_cert);
+    // save decrypted_cert into a string
     char *server_cert_string = mpz_get_str(NULL, HEX_BASE, decrypted_cert);
+    printf("we made it here!\n");
+    printf("server_cert_string: ");
+    printVariable(server_cert_string);
+    printf("we got the server cert string: %s\n", strchr(server_cert_string,'s'));
 
     // extract server exponent
     mpz_t server_exponent;
@@ -245,8 +247,8 @@ int main(int argc, char **argv) {
     // printf("server_cert_string: %s, length: %d\n", server_cert_string, strlen(server_cert_string));
     // get_cert_exponent(mpz_t result, char *cert)
     get_cert_exponent(server_exponent, server_cert_string); // gives seg fault
-    
-    printf("we made it here!\n");
+
+    printf("we got cert exponent!\n");
 
     // extract server mod
     mpz_t server_mod;
@@ -665,9 +667,10 @@ perform_rsa(mpz_t result, mpz_t message, mpz_t e, mpz_t n)
     mpz_div_ui(e, e, 2);
     odd_num = mpz_odd_p(e);
   }
-  printf("perform_rsa output: ");
-  mpz_out_str (stdout, 10, result);
-  printf("\n");
+  // debugging..
+  // printf("perform_rsa output: ");
+  // mpz_out_str (stdout, 10, result);
+  // printf("\n");
 }
 
 
@@ -823,4 +826,14 @@ void printVariable(char *input){
         printf("%02x", input[i]);
     }
     printf("\n");
+}
+
+void printCertificate(mpz_t result){
+    char *result_str;
+    result_str = mpz_get_str(NULL, 16, result);
+    int i = 0;
+    while(result_str[i] != '\0') {
+        printf("%c", hex_to_ascii(result_str[i], result_str[i+1]));
+        i+=2;
+    }
 }
