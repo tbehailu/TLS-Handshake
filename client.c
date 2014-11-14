@@ -194,8 +194,8 @@ int main(int argc, char **argv) {
     /* ----------  4. receive server cert ----------*/
     cert_message s_cert;
     exit_code = receive_tls_message(sockfd, &s_cert, CERT_MSG_SIZE, SERVER_CERTIFICATE);
-    if (exit_code < 0) {
-        printf("caught error! TODO - quit here.");
+    if (exit_code < 0 || exit_code == ERR_FAILURE) {
+        printf("caught error! TODO - quit here.\n");
     }
 
     // TODO: find out how to get the hex part from CA_EXPONENT and CA_MODULUS so I don't have to hard code it in anymore
@@ -231,13 +231,14 @@ int main(int argc, char **argv) {
     // printf("\n");
 
     // save decrypted_cert into a string
-    char *server_cert_string = mpz_get_str(NULL, HEX_BASE, decrypted_cert);
+    // char *server_cert_string = mpz_get_str(NULL, HEX_BASE, decrypted_cert);
+    char server_cert_string[CERT_MSG_SIZE];
+    mpz_get_ascii(server_cert_string, decrypted_cert);
 
     // extract server exponent
     mpz_t server_exponent;
     mpz_init(server_exponent);
     // printf("server_cert_string: %s, length: %d\n", server_cert_string, strlen(server_cert_string));
-    // get_cert_exponent(mpz_t result, char *cert)
     get_cert_exponent(server_exponent, server_cert_string); // gives seg fault
 
     printf("we got cert exponent!\n");
@@ -265,9 +266,11 @@ int main(int argc, char **argv) {
 
     printf("we encrypted the premaster!\n");
     
-    char* encrypted_premaster_string = mpz_get_str(NULL, HEX_BASE, encrypted_premaster);
-    // printf("encrypted_premaster_string: ");
-    // printVariable(encrypted_premaster_string);
+    // char* encrypted_premaster_string = mpz_get_str(NULL, HEX_BASE, encrypted_premaster);
+    char encrypted_premaster_string[CERT_MSG_SIZE];
+    mpz_get_ascii(encrypted_premaster_string, encrypted_premaster);
+    printf("encrypted_premaster: ");
+    printCertificate(ps_mpz);
 
     /*** TODO: Double check how premaster is being set ****/
     memcpy(psm.ps, encrypted_premaster_string, RSA_MAX_LEN); // copy to message
@@ -281,7 +284,7 @@ int main(int argc, char **argv) {
     printf("we have sent the premaster secret!\n");
 
     /* --------  6. compute the local master secret -------*/
-    
+
     unsigned char local_master[RSA_MAX_LEN];
     compute_master_secret(ps, c_hello.random, s_hello.random, local_master);
 
@@ -290,22 +293,24 @@ int main(int argc, char **argv) {
     // 6.1 and now receive the server master, confirm it's the same
     ps_msg psm_response;
     exit_code = receive_tls_message(sockfd, &psm_response, PS_MSG_SIZE, VERIFY_MASTER_SECRET);
-    if (exit_code < 0) {
-        printf("caught error! TODO - quit here.");
+    if (exit_code < 0 || exit_code == ERR_FAILURE) {
+        printf("Message not received correctly!\n");
+        // return ERR_FAILURE;
     }
 
     printf("received the server master!, exit_code: %d\n", exit_code);
 
     mpz_t server_premaster;
     mpz_init(server_exponent);
-    printVariable(psm_response.ps);
     decrypt_verify_master_secret(server_premaster, &psm_response, client_exp, client_mod);
 
 
     // TODO: check that str(server_premaster) == local_master
-    printf("server_premaster = %s, local_master = %s \n", server_premaster, local_master);
-
-
+    printf("server_premaster = ");
+    mpz_out_str(stdout, 16, server_premaster);
+    printf("local_master = ");
+    mpz_out_str(stdout, 16, local_master);
+    printf("\n");
 
 
 
@@ -336,6 +341,13 @@ int main(int argc, char **argv) {
         printf("Error setting key in crack.\n");
     }
     */
+    if (aes_setkey_enc(&enc_ctx, local_master, 128)) {
+        printf("Error setting key in crack.\n");
+    }
+
+    if (aes_setkey_enc(&dec_ctx, local_master, 128)) {
+        printf("Error setting key in crack.\n");
+    }
 
 
 
@@ -451,7 +463,6 @@ void
 decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, mpz_t key_mod)
 {
     /* This code is not done. Be careful! */
-    printf("verifying the master secret...\n");
     mpz_t ps;
     mpz_init(ps);
     // mpz_set_str(ca_exp, CA_EXPONENT,0);
@@ -552,7 +563,7 @@ receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
 
     // TODO: Double-check
     int read_result = read(socketno, msg, msg_len);
-    // printf("read_result = %d, msg_len = %d\n", read_result, msg_len);
+    printf("read_result = %d, msg_len = %d\n", read_result, msg_len);
 
     if (read_result != msg_len || msg_type == ERROR_MESSAGE){ // if bytes read is not correct length or msg_type is error, return error
         return ERR_FAILURE;
