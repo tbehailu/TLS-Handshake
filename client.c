@@ -180,21 +180,26 @@ int main(int argc, char **argv) {
     /****** TODO: Double check *******/
 
     // read c_file into buffer
-    char buffer[CERT_MSG_SIZE];
-    fread(buffer, CERT_MSG_SIZE, 1, c_file);
 
-    // printf("c_file contents: %s\n", buffer);
+    // char buffer[CERT_MSG_SIZE];
+    // fread(buffer, CERT_MSG_SIZE, 1, c_file);
+    // memcpy(c_cert.cert, buffer, RSA_MAX_LEN);
+
+
+    fgets(c_cert.cert, RSA_MAX_LEN, c_file);
+    printf("c_file contents: %s\n", hex_to_str(c_cert.cert, RSA_MAX_LEN));
+    
     //memcpy(c_cert.cert, /* client_certificate goes here - use c_file, just read file. Might need to use gmp - string to mpz_t*/, RSA_MAX_LEN);
-    memcpy(c_cert.cert, buffer, RSA_MAX_LEN);
-
+    
+    
     exit_code = send_tls_message(sockfd, &c_cert, CERT_MSG_SIZE);
     if (exit_code < 0) {
-        printf("caught error! TODO - quit here.");
+        printf("Error: Did not send client certificate correctly.");
     }
 
     /* ----------  4. receive server cert ----------*/
     cert_message s_cert;
-    s_cert.type = SERVER_CERTIFICATE;
+    // s_cert.type = SERVER_CERTIFICATE;
     exit_code = receive_tls_message(sockfd, &s_cert, CERT_MSG_SIZE, SERVER_CERTIFICATE);
     if (exit_code < 0 || exit_code == ERR_FAILURE) {
         printf("Error: Did not receive server certificate correctly.\n");
@@ -596,13 +601,14 @@ receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
 {
     // debugging print statements
     // void * to int reference: http://stackoverflow.com/questions/1640423/error-cast-from-void-to-int-loses-precision
-    int type_of_msg = *((int *)msg);
 
     // printf("msg.type = %d, msg_type = %d\n", type_of_msg, msg_type);
 
     // TODO: Double-check
     int read_result = read(socketno, msg, msg_len);
+    int type_of_msg = *((int *)msg);
     printf("read_result = %d, msg_len = %d\n", read_result, msg_len);
+    printf("type_of_msg = %d, msg_type = %d\n", type_of_msg, msg_type);
 
     if (read_result != msg_len){ // if bytes read is not correct length or msg_type is error, return error
         return ERR_FAILURE;
