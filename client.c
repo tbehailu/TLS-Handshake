@@ -194,6 +194,7 @@ int main(int argc, char **argv) {
 
     /* ----------  4. receive server cert ----------*/
     cert_message s_cert;
+    s_cert.type = SERVER_CERTIFICATE;
     exit_code = receive_tls_message(sockfd, &s_cert, CERT_MSG_SIZE, SERVER_CERTIFICATE);
     if (exit_code < 0 || exit_code == ERR_FAILURE) {
         printf("Error: Did not receive server certificate correctly.\n");
@@ -247,14 +248,14 @@ int main(int argc, char **argv) {
     // printf("server_cert_string: %s, length: %d\n", server_cert_string, strlen(server_cert_string));
     get_cert_exponent(server_exponent, server_cert_string); // gives seg fault
 
-    printf("we got cert exponent!\n");
+    // printf("we got cert exponent!\n");
 
     // extract server mod
     mpz_t server_mod;
     mpz_init(server_mod);
     get_cert_modulus(server_mod, server_cert_string);
 
-    printf("we got cert mod!\n");
+    // printf("we got cert mod!\n");
 
     /* -----  5. Compute premaster secret, send it to server, encrypted with server public key --------*/
 
@@ -270,7 +271,7 @@ int main(int argc, char **argv) {
     mpz_init(encrypted_premaster);
     perform_rsa(encrypted_premaster, ps_mpz, server_exponent, server_mod); // encrypt with server key
 
-    printf("%s\n", hex_to_str(psm.ps,RSA_MAX_LEN));
+    // printf("encrypted_premaster = %s\n", hex_to_str(encrypted_premaster,RSA_MAX_LEN));
 
     printf("we encrypted the premaster!\n");
     
@@ -296,16 +297,17 @@ int main(int argc, char **argv) {
     unsigned char local_master[RSA_MAX_LEN];
     compute_master_secret(ps, c_hello.random, s_hello.random, local_master);
 
-    printf("c_hello.random: %d, s_hello.random: %d\n", c_hello.random, s_hello.random);
+    // printf("c_hello.random: %d, s_hello.random: %d\n", c_hello.random, s_hello.random);
 
     printf("computed master secret!\n");
     printUnsignedCharArray(local_master);
 
     // 6.1 and now receive the server master, confirm it's the same
     ps_msg psm_response;
+    psm_response.type = malloc(sizeof(int));
     exit_code = receive_tls_message(sockfd, &psm_response, PS_MSG_SIZE, VERIFY_MASTER_SECRET);
     if (exit_code < 0 || exit_code == ERR_FAILURE) {
-        printf("Message not received correctly!\n");
+        printf("Error: Did not receive server master correctly.\n");
         // return ERR_FAILURE;
     }
 
@@ -322,6 +324,7 @@ int main(int argc, char **argv) {
     mpz_out_str(stdout, 16, server_premaster);
     printf("local_master = ");
     printUnsignedCharArray(local_master);
+    printCertificate(server_premaster);
     printf("\n");
 
 
