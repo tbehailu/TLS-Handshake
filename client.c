@@ -304,13 +304,13 @@ int main(int argc, char **argv) {
 
     /* --------  6. compute the local master secret -------*/
 
-    unsigned char local_master[RSA_MAX_LEN];
-    compute_master_secret(ps, c_hello.random, s_hello.random, local_master);
+    unsigned char master_secret[RSA_MAX_LEN];
+    compute_master_secret(ps, c_hello.random, s_hello.random, master_secret);
 
     // printf("c_hello.random: %d, s_hello.random: %d\n", c_hello.random, s_hello.random);
 
     printf("computed master secret!\n");
-    printUnsignedCharArray(local_master);
+    // printUnsignedCharArray(master_secret);
 
     // 6.1 and now receive the server master, confirm it's the same
     ps_msg psm_response;
@@ -328,14 +328,12 @@ int main(int argc, char **argv) {
     mpz_init(server_exponent);
     decrypt_verify_master_secret(server_premaster, &psm_response, client_exp, client_mod);
 
-
     // TODO: check that str(server_premaster) == local_master
     printf("server_premaster = ");
-    mpz_out_str(stdout, 16, server_premaster);
+    printCertificate(server_premaster);
     printf("\n");
     printf("local_master = ");
-    printUnsignedCharArray(local_master);
-    printCertificate(server_premaster);
+    printUnsignedCharArray(master_secret);
     printf("\n");
 
 
@@ -359,19 +357,19 @@ int main(int argc, char **argv) {
 
     /* NOT DONE! */
     /*
-    if (aes_setkey_enc(&enc_ctx, uchar* local_master, 128)) {
+    if (aes_setkey_enc(&enc_ctx, uchar* master_secret, 128)) {
         printf("Error setting key.\n");
     }
 
-    if (aes_setkey_enc(&dec_ctx, uchar* local_master, 128)) {
+    if (aes_setkey_enc(&dec_ctx, uchar* master_secret, 128)) {
         printf("Error setting key.\n");
     }
     */
-    if (aes_setkey_enc(&enc_ctx, local_master, 128)) {
+    if (aes_setkey_enc(&enc_ctx, master_secret, 128)) {
         printf("Error setting encryption key.\n");
     }
 
-    if (aes_setkey_enc(&dec_ctx, local_master, 128)) {
+    if (aes_setkey_enc(&dec_ctx, master_secret, 128)) {
         printf("Error setting decryption key.\n");
     }
 
@@ -497,7 +495,6 @@ decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, 
     printf("decrypting the master secret..\n");
     // perform the decryption
     perform_rsa(decrypted_ms, ps, key_exp, key_mod);
-    printCertificate(decrypted_ms);
 
     // done?
 }
@@ -548,7 +545,7 @@ compute_master_secret(int ps, int client_random, int server_random, unsigned cha
     unsigned char *hash_data = malloc(16);
     // hash_data = (unsigned char *) arr;
     // hash_data << ps_array;
-    printUnsignedCharArray(hash_data);
+    // printUnsignedCharArray(hash_data);
 
     // add to hash
     // Master secret = H(PS||clienthello.random||serverhello.random||PS)
