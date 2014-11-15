@@ -185,9 +185,10 @@ int main(int argc, char **argv) {
     // fread(buffer, CERT_MSG_SIZE, 1, c_file);
     // memcpy(c_cert.cert, buffer, RSA_MAX_LEN);
 
-
-    fgets(c_cert.cert, RSA_MAX_LEN, c_file);
+    memset(c_cert.cert, 0, RSA_MAX_LEN); // set the message to zero before assigning
+    fgets(c_cert.cert, RSA_MAX_LEN, c_file); 
     printf("c_file contents: %s\n", hex_to_str(c_cert.cert, RSA_MAX_LEN));
+    printCharArray(hex_to_str(c_cert.cert, RSA_MAX_LEN));
     
     //memcpy(c_cert.cert, /* client_certificate goes here - use c_file, just read file. Might need to use gmp - string to mpz_t*/, RSA_MAX_LEN);
     
@@ -279,15 +280,19 @@ int main(int argc, char **argv) {
     // printf("encrypted_premaster = %s\n", hex_to_str(encrypted_premaster,RSA_MAX_LEN));
 
     printf("we encrypted the premaster!\n");
-    
-    // char* encrypted_premaster_string = mpz_get_str(NULL, HEX_BASE, encrypted_premaster);
-    char encrypted_premaster_string[CERT_MSG_SIZE];
-    mpz_get_ascii(encrypted_premaster_string, encrypted_premaster);
+
+    char* encrypted_premaster_string = mpz_get_str(NULL, HEX_BASE, encrypted_premaster);
+    // char encrypted_premaster_string[CERT_MSG_SIZE];
+    // mpz_get_ascii(encrypted_premaster_string, encrypted_premaster);
     printf("encrypted_premaster: ");
     printCertificate(ps_mpz);
+    printf("encrypted_premaster_string: ");
+    printCharArray(encrypted_premaster_string);
 
     /*** TODO: Double check how premaster is being set ****/
+    memset(psm.ps, 0, RSA_MAX_LEN); // set the message to zero before assigning
     memcpy(psm.ps, encrypted_premaster_string, RSA_MAX_LEN); // copy to message
+    printCharArray(psm.ps);
 
     // send the message
     exit_code = send_tls_message(sockfd, &psm, PS_MSG_SIZE);
@@ -309,8 +314,8 @@ int main(int argc, char **argv) {
 
     // 6.1 and now receive the server master, confirm it's the same
     ps_msg psm_response;
-    psm_response.type = malloc(sizeof(int));
-    exit_code = receive_tls_message(sockfd, &psm_response, PS_MSG_SIZE, VERIFY_MASTER_SECRET);
+    // psm_response.type = malloc(sizeof(int));
+    exit_code = receive_tls_message(sockfd, &psm_response, TLS_MSG_SIZE, VERIFY_MASTER_SECRET);
     if (exit_code < 0 || exit_code == ERR_FAILURE) {
         printf("Error: Did not receive server master correctly.\n");
         // return ERR_FAILURE;
@@ -327,6 +332,7 @@ int main(int argc, char **argv) {
     // TODO: check that str(server_premaster) == local_master
     printf("server_premaster = ");
     mpz_out_str(stdout, 16, server_premaster);
+    printf("\n");
     printf("local_master = ");
     printUnsignedCharArray(local_master);
     printCertificate(server_premaster);
@@ -553,7 +559,6 @@ compute_master_secret(int ps, int client_random, int server_random, unsigned cha
     
     SHA256_CTX ctx;
     sha256_init(&ctx);
-    sha256_update(&ctx, hash_data, 8);
     sha256_update(&ctx, ps_array, 8);
     sha256_update(&ctx, cli_array, 8);
     sha256_update(&ctx, ser_array, 8);
@@ -912,8 +917,9 @@ void assign (unsigned char *arr, uint32_t val)
 
 void printVariable(char *input){
     int i;
-    for (i = 0; i < 16; i++) {
+    while(input[i] != '\0') {
         printf("%02x", input[i]);
+        i+=1;
     }
     printf("\n");
 }
