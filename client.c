@@ -354,14 +354,14 @@ int main(int argc, char **argv) {
     }
     */
     if (aes_setkey_enc(&enc_ctx, local_master, 128)) {
-        printf("Error setting key in crack.\n");
+        printf("Error setting encryption key.\n");
     }
 
     if (aes_setkey_enc(&dec_ctx, local_master, 128)) {
-        printf("Error setting key in crack.\n");
+        printf("Error setting decryption key.\n");
     }
 
-
+    printf("made it to the end of handshake!\n");
 
 
 
