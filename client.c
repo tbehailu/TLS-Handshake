@@ -321,6 +321,7 @@ int main(int argc, char **argv) {
         // return ERR_FAILURE;
     }
 
+    printCharArray(psm_response.ps);
     printf("received server master; exit_code: %d\n", exit_code);
     // printf("psm_response: %d, s_hello.random: %d\n", *((int *) psm_response), s_hello.random);
 
@@ -338,8 +339,6 @@ int main(int argc, char **argv) {
     printf("master_secret = ");
     printUnsignedCharArray(master_secret);
     printf("\n");
-
-
 
     /*
     * START ENCRYPTED MESSAGES
@@ -919,8 +918,7 @@ void printVariable(char *input){
 }
 
 void printCertificate(mpz_t result){
-    char *result_str;
-    result_str = mpz_get_str(NULL, 16, result);
+    char *result_str = mpz_get_str(NULL, 16, result);
     int i = 0;
     while(result_str[i] != '\0') {
         printf("%c", hex_to_ascii(result_str[i], result_str[i+1]));
