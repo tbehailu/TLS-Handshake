@@ -489,15 +489,11 @@ decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_
 void
 decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, mpz_t key_mod)
 {
-    /* This code is not done. Be careful! */
+    // printf("decrypting the master secret..\n");
     mpz_t ps;
     mpz_init_set_str(ps, ms_ver->ps, 0);
-    // printf("decrypting the master secret..\n");
     // perform the decryption
     perform_rsa(decrypted_ms, ps, key_exp, key_mod);
-
-
-    // done?
 }
 
 /*
@@ -542,8 +538,8 @@ compute_master_secret(int ps, int client_random, int server_random, unsigned cha
     // for (int i = 0; i < 8; i++){
     //     assign(hash_data+24, (int)ps_array[i]);
     // }
-    int arr[4] = {ps, client_random, server_random, ps}; 
-    unsigned char *hash_data = malloc(16);
+    // int arr[4] = {ps, client_random, server_random, ps}; 
+    unsigned char *hash_data = malloc(8);
     // hash_data = (unsigned char *) arr;
     // hash_data << ps_array;
     // printUnsignedCharArray(hash_data);
@@ -563,7 +559,7 @@ compute_master_secret(int ps, int client_random, int server_random, unsigned cha
     sha256_update(&ctx, ps_array, 8);
     sha256_final(&ctx, master_secret);
 
-    // free(hash_data);
+    free(hash_data);
 }
 
 /*
