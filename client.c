@@ -23,6 +23,7 @@ static void cleanup();
 void printVariable(char *input);
 void printCertificate(mpz_t result);
 void printCharArray(char *arr);
+void printUnsignedCharArray(unsigned char *arr);
 
 /* Helper function, assigns into to char array. */
 static void assign (unsigned char *pass, uint32_t val);
@@ -195,7 +196,10 @@ int main(int argc, char **argv) {
     cert_message s_cert;
     exit_code = receive_tls_message(sockfd, &s_cert, CERT_MSG_SIZE, SERVER_CERTIFICATE);
     if (exit_code < 0 || exit_code == ERR_FAILURE) {
-        printf("caught error! TODO - quit here.\n");
+        printf("Error: Did not receive server certificate correctly.\n");
+        printf("exit_code = %d\n", exit_code);
+        printCharArray(s_cert.cert);
+
     }
 
     // TODO: find out how to get the hex part from CA_EXPONENT and CA_MODULUS so I don't have to hard code it in anymore
@@ -220,6 +224,8 @@ int main(int argc, char **argv) {
     mpz_init(decrypted_cert);
     decrypt_cert(decrypted_cert, &s_cert, ca_exp, ca_mod);
     
+    // hex_to_str(CA_MODULUS, RSA_MAX_LEN);
+
     // printf("decrypted_cert: ");
     // mpz_out_str(stdout, 10, decrypted_cert);
     // printf("\n");
@@ -264,6 +270,8 @@ int main(int argc, char **argv) {
     mpz_init(encrypted_premaster);
     perform_rsa(encrypted_premaster, ps_mpz, server_exponent, server_mod); // encrypt with server key
 
+    printf("%s\n", hex_to_str(psm.ps,RSA_MAX_LEN));
+
     printf("we encrypted the premaster!\n");
     
     // char* encrypted_premaster_string = mpz_get_str(NULL, HEX_BASE, encrypted_premaster);
@@ -288,7 +296,10 @@ int main(int argc, char **argv) {
     unsigned char local_master[RSA_MAX_LEN];
     compute_master_secret(ps, c_hello.random, s_hello.random, local_master);
 
+    printf("c_hello.random: %d, s_hello.random: %d\n", c_hello.random, s_hello.random);
+
     printf("computed master secret!\n");
+    printUnsignedCharArray(local_master);
 
     // 6.1 and now receive the server master, confirm it's the same
     ps_msg psm_response;
@@ -298,7 +309,8 @@ int main(int argc, char **argv) {
         // return ERR_FAILURE;
     }
 
-    printf("received the server master!, exit_code: %d\n", exit_code);
+    printf("received server master; exit_code: %d\n", exit_code);
+    // printf("psm_response: %d, s_hello.random: %d\n", *((int *) psm_response), s_hello.random);
 
     mpz_t server_premaster;
     mpz_init(server_exponent);
@@ -309,7 +321,7 @@ int main(int argc, char **argv) {
     printf("server_premaster = ");
     mpz_out_str(stdout, 16, server_premaster);
     printf("local_master = ");
-    mpz_out_str(stdout, 16, local_master);
+    printUnsignedCharArray(local_master);
     printf("\n");
 
 
@@ -334,11 +346,11 @@ int main(int argc, char **argv) {
     /* NOT DONE! */
     /*
     if (aes_setkey_enc(&enc_ctx, uchar* local_master, 128)) {
-        printf("Error setting key in crack.\n");
+        printf("Error setting key.\n");
     }
 
     if (aes_setkey_enc(&dec_ctx, uchar* local_master, 128)) {
-        printf("Error setting key in crack.\n");
+        printf("Error setting key.\n");
     }
     */
     if (aes_setkey_enc(&enc_ctx, local_master, 128)) {
@@ -504,19 +516,43 @@ compute_master_secret(int ps, int client_random, int server_random, unsigned cha
     assign(ser_array, server_random); // use assign from gentable. remember it's size 8.
 
 
+    // unsigned char *hash_data = (unsigned char *)calloc(32, sizeof(unsigned char));
+    // hash_data[0] = ps_array;
+    // for (int i = 0; i < 8; i++){
+    //     assign(hash_data, (int)ps_array[i]);
+    // }
+    // for (int i = 0; i < 8; i++){
+    //     assign(hash_data+8, (int)cli_array[i]);
+    // }
+    // for (int i = 0; i < 8; i++){
+    //     assign(hash_data+16, (int)ser_array[i]);
+    // }
+    // for (int i = 0; i < 8; i++){
+    //     assign(hash_data+24, (int)ps_array[i]);
+    // }
+    int arr[4] = {ps, client_random, server_random, ps}; 
+    unsigned char *hash_data = malloc(16);
+    // hash_data = (unsigned char *) arr;
+    // hash_data << ps_array;
+    printUnsignedCharArray(hash_data);
+
     // add to hash
     // Master secret = H(PS||clienthello.random||serverhello.random||PS)
 
     // void sha256_update(SHA256_CTX *ctx, uchar data[], uint len)
 
 
+    
     SHA256_CTX ctx;
     sha256_init(&ctx);
-    sha256_update(&ctx, ps_array, 16);
-    sha256_update(&ctx, cli_array, 16);
-    sha256_update(&ctx, ser_array, 16);
-    sha256_update(&ctx, ps_array, 16);
+    sha256_update(&ctx, hash_data, 8);
+    sha256_update(&ctx, ps_array, 8);
+    sha256_update(&ctx, cli_array, 8);
+    sha256_update(&ctx, ser_array, 8);
+    sha256_update(&ctx, ps_array, 8);
     sha256_final(&ctx, master_secret);
+
+    // free(hash_data);
 }
 
 /*
@@ -565,7 +601,7 @@ receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
     int read_result = read(socketno, msg, msg_len);
     printf("read_result = %d, msg_len = %d\n", read_result, msg_len);
 
-    if (read_result != msg_len || msg_type == ERROR_MESSAGE){ // if bytes read is not correct length or msg_type is error, return error
+    if (read_result != msg_len){ // if bytes read is not correct length or msg_type is error, return error
         return ERR_FAILURE;
     }
 
@@ -855,7 +891,7 @@ cleanup()
 }
 
 
-/* Assigns into to char array*/
+/* Assigns into to unsigned char array*/
 void assign (unsigned char *arr, uint32_t val)
 {
     int i;
@@ -885,6 +921,15 @@ void printCertificate(mpz_t result){
 }
 
 void printCharArray(char *arr){
+    int i = 0;
+    while(arr[i] != '\0') {
+        printf("%c", hex_to_ascii(arr[i], arr[i+1]));
+        i+=2;
+    }
+    printf("\n");
+}
+
+void printUnsignedCharArray(unsigned char *arr){
     int i = 0;
     while(arr[i] != '\0') {
         printf("%c", hex_to_ascii(arr[i], arr[i+1]));
