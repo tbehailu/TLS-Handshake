@@ -187,8 +187,8 @@ int main(int argc, char **argv) {
 
     memset(c_cert.cert, 0, RSA_MAX_LEN); // set the message to zero before assigning
     fgets(c_cert.cert, RSA_MAX_LEN, c_file); 
-    printf("c_file contents: %s\n", hex_to_str(c_cert.cert, RSA_MAX_LEN));
-    printCharArray(hex_to_str(c_cert.cert, RSA_MAX_LEN));
+    // printf("c_file contents: %s\n", hex_to_str(c_cert.cert, RSA_MAX_LEN));
+    // printCharArray(hex_to_str(c_cert.cert, RSA_MAX_LEN));
     
     //memcpy(c_cert.cert, /* client_certificate goes here - use c_file, just read file. Might need to use gmp - string to mpz_t*/, RSA_MAX_LEN);
     
@@ -284,10 +284,10 @@ int main(int argc, char **argv) {
     char* encrypted_premaster_string = mpz_get_str(NULL, HEX_BASE, encrypted_premaster);
     // char encrypted_premaster_string[CERT_MSG_SIZE];
     // mpz_get_ascii(encrypted_premaster_string, encrypted_premaster);
-    printf("encrypted_premaster: ");
-    printCertificate(ps_mpz);
-    printf("encrypted_premaster_string: ");
-    printCharArray(encrypted_premaster_string);
+    // printf("encrypted_premaster: ");
+    // printCertificate(ps_mpz);
+    // printf("encrypted_premaster_string: ");
+    // printCharArray(encrypted_premaster_string);
 
     /*** TODO: Double check how premaster is being set ****/
     memset(psm.ps, 0, RSA_MAX_LEN); // set the message to zero before assigning
@@ -315,7 +315,7 @@ int main(int argc, char **argv) {
     // 6.1 and now receive the server master, confirm it's the same
     ps_msg psm_response;
     // psm_response.type = malloc(sizeof(int));
-    exit_code = receive_tls_message(sockfd, &psm_response, TLS_MSG_SIZE, VERIFY_MASTER_SECRET);
+    exit_code = receive_tls_message(sockfd, &psm_response, PS_MSG_SIZE, VERIFY_MASTER_SECRET);
     if (exit_code < 0 || exit_code == ERR_FAILURE) {
         printf("Error: Did not receive server master correctly.\n");
         // return ERR_FAILURE;
