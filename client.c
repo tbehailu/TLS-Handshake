@@ -328,11 +328,11 @@ int main(int argc, char **argv) {
     mpz_init(server_exponent);
     decrypt_verify_master_secret(server_premaster, &psm_response, client_exp, client_mod);
 
-    // TODO: check that str(server_premaster) == local_master
+    // TODO: check that str(server_premaster) == master_secret
     printf("server_premaster = ");
     printCertificate(server_premaster);
     printf("\n");
-    printf("local_master = ");
+    printf("master_secret = ");
     printUnsignedCharArray(master_secret);
     printf("\n");
 
