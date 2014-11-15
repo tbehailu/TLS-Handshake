@@ -331,6 +331,9 @@ int main(int argc, char **argv) {
     // TODO: check that str(server_premaster) == master_secret
     printf("server_premaster = ");
     printCertificate(server_premaster);
+    // char output_str[RSA_MAX_LEN];
+    // mpz_get_ascii(output_str, server_premaster);
+    // printCharArray(output_str);
     printf("\n");
     printf("master_secret = ");
     printUnsignedCharArray(master_secret);
@@ -488,13 +491,11 @@ decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, 
 {
     /* This code is not done. Be careful! */
     mpz_t ps;
-    mpz_init(ps);
-    // mpz_set_str(ca_exp, CA_EXPONENT,0);
-    // mpz_set_str(mpz_cert, hex_to_str(cert->cert,RSA_MAX_LEN), 0);
-    mpz_set_str(ps, hex_to_str(ms_ver->ps,RSA_MAX_LEN), 0);
-    printf("decrypting the master secret..\n");
+    mpz_init_set_str(ps, ms_ver->ps, 0);
+    // printf("decrypting the master secret..\n");
     // perform the decryption
     perform_rsa(decrypted_ms, ps, key_exp, key_mod);
+
 
     // done?
 }
