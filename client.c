@@ -205,7 +205,7 @@ int main(int argc, char **argv) {
     if (exit_code < 0 || exit_code == ERR_FAILURE) {
         printf("Error: Did not receive server certificate correctly.\n");
         printf("exit_code = %d\n", exit_code);
-        printCharArray(s_cert.cert);
+        // printCharArray(s_cert.cert);
 
     }
 
@@ -292,7 +292,7 @@ int main(int argc, char **argv) {
     /*** TODO: Double check how premaster is being set ****/
     memset(psm.ps, 0, RSA_MAX_LEN); // set the message to zero before assigning
     memcpy(psm.ps, encrypted_premaster_string, RSA_MAX_LEN); // copy to message
-    printCharArray(psm.ps);
+    // printCharArray(psm.ps);
 
     // send the message
     exit_code = send_tls_message(sockfd, &psm, PS_MSG_SIZE);
@@ -321,7 +321,7 @@ int main(int argc, char **argv) {
         // return ERR_FAILURE;
     }
 
-    printCharArray(psm_response.ps);
+    // printCharArray(psm_response.ps);
     printf("received server master; exit_code: %d\n", exit_code);
     // printf("psm_response: %d, s_hello.random: %d\n", *((int *) psm_response), s_hello.random);
 
@@ -335,7 +335,7 @@ int main(int argc, char **argv) {
     // char output_str[RSA_MAX_LEN];
     // mpz_get_ascii(output_str, server_premaster);
     // printCharArray(output_str);
-    printf("\n");
+    // printf("\n");
     printf("master_secret = ");
     printUnsignedCharArray(master_secret);
     printf("\n");
@@ -458,7 +458,7 @@ decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_
     mpz_init(mpz_cert);
     mpz_set_str(mpz_cert, hex_to_str(cert->cert,RSA_MAX_LEN), 0); // note, leading '0x' may cause issues.t
     perform_rsa(decrypted_cert, mpz_cert, key_exp, key_mod);
-    printCertificate(decrypted_cert);
+    // printCertificate(decrypted_cert);
 
     /*
     // debug
@@ -511,37 +511,21 @@ compute_master_secret(int ps, int client_random, int server_random, unsigned cha
     printf("computing the master secret..\n");
     // ps
     unsigned char ps_array[8];
-    assign(ps_array, ps); // use assign from gentable. remember it's size 8.
+    assign(ps_array,  (uint8_t) ps); // use assign from gentable. remember it's size 8.
     
 
     // client secret
     unsigned char cli_array[8];
-    assign(cli_array, client_random); // use assign from gentable. remember it's size 8.
+    assign(cli_array,  (uint8_t) client_random); // use assign from gentable. remember it's size 8.
 
     // server secret
     unsigned char ser_array[8];
-    assign(ser_array, server_random); // use assign from gentable. remember it's size 8.
+    assign(ser_array,  (uint8_t) server_random); // use assign from gentable. remember it's size 8.
 
 
     // unsigned char *hash_data = (unsigned char *)calloc(32, sizeof(unsigned char));
-    // hash_data[0] = ps_array;
-    // for (int i = 0; i < 8; i++){
-    //     assign(hash_data, (int)ps_array[i]);
-    // }
-    // for (int i = 0; i < 8; i++){
-    //     assign(hash_data+8, (int)cli_array[i]);
-    // }
-    // for (int i = 0; i < 8; i++){
-    //     assign(hash_data+16, (int)ser_array[i]);
-    // }
-    // for (int i = 0; i < 8; i++){
-    //     assign(hash_data+24, (int)ps_array[i]);
-    // }
-    // int arr[4] = {ps, client_random, server_random, ps}; 
+    
     unsigned char *hash_data = malloc(8);
-    // hash_data = (unsigned char *) arr;
-    // hash_data << ps_array;
-    // printUnsignedCharArray(hash_data);
 
     // add to hash
     // Master secret = H(PS||clienthello.random||serverhello.random||PS)
@@ -553,8 +537,9 @@ compute_master_secret(int ps, int client_random, int server_random, unsigned cha
     SHA256_CTX ctx;
     sha256_init(&ctx);
     sha256_update(&ctx, ps_array, 8);
-    sha256_update(&ctx, cli_array, 8);
+    
     sha256_update(&ctx, ser_array, 8);
+    sha256_update(&ctx, cli_array, 8);
     sha256_update(&ctx, ps_array, 8);
     sha256_final(&ctx, master_secret);
 
@@ -617,36 +602,6 @@ receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
     }
 
     return ERR_FAILURE;
-
-    // if (msg_type == CLIENT_HELLO){
-    //     // return ERR_OK; ??
-    // }
-
-    // if (msg_type == SERVER_HELLO){
-    //     // return ERR_OK;
-    // }
-
-    // if (msg_type == CLIENT_CERTIFICATE){
-    //     // return ERR_OK;
-    // }
-
-    // if (msg_type == SERVER_CERTIFICATE){
-    //     // cert_message* ret = (struct cert_message*) msg;
-    //     // printf("ret->cert: %s\n", ret->cert);
-    //     // return ERR_OK;
-    // }
-
-    // if (msg_type == PREMASTER_SECRET){
-    //     // return ERR_OK;
-    // }
-
-    // if (msg_type == VERIFY_MASTER_SECRET){
-    //     return ERR_OK;
-    // }
-
-    // if (msg_type == ENCRYPTED_MESSAGE){
-    //     return ERR_OK;
-    // }
 
     /*
     if (read_result == -1) {
@@ -898,7 +853,7 @@ cleanup()
 }
 
 
-/* Assigns into to unsigned char array*/
+/* Assigns into to unsigned char array */
 void assign (unsigned char *arr, uint32_t val)
 {
     int i;
