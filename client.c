@@ -153,9 +153,6 @@ int main(int argc, char **argv) {
     c_hello.type = CLIENT_HELLO;
     c_hello.random = random_int();
 
-    // print statement for write-up #2
-    // printf("random int = %d\n",c_hello.random);
-
     c_hello.cipher_suite = TLS_RSA_WITH_AES_128_ECB_SHA256;
     exit_code = send_tls_message(sockfd, &c_hello, HELLO_MSG_SIZE);
     if (exit_code < 0) {
@@ -179,18 +176,9 @@ int main(int argc, char **argv) {
 
     /****** TODO: Double check *******/
 
-    // read c_file into buffer
-
-    // char buffer[CERT_MSG_SIZE];
-    // fread(buffer, CERT_MSG_SIZE, 1, c_file);
-    // memcpy(c_cert.cert, buffer, RSA_MAX_LEN);
-
     memset(c_cert.cert, 0, RSA_MAX_LEN); // set the message to zero before assigning
     fgets(c_cert.cert, RSA_MAX_LEN, c_file); 
-    // printf("c_file contents: %s\n", hex_to_str(c_cert.cert, RSA_MAX_LEN));
-    // printCharArray(hex_to_str(c_cert.cert, RSA_MAX_LEN));
     
-    //memcpy(c_cert.cert, /* client_certificate goes here - use c_file, just read file. Might need to use gmp - string to mpz_t*/, RSA_MAX_LEN);
     
     
     exit_code = send_tls_message(sockfd, &c_cert, CERT_MSG_SIZE);
@@ -200,16 +188,13 @@ int main(int argc, char **argv) {
 
     /* ----------  4. receive server cert ----------*/
     cert_message s_cert;
-    // s_cert.type = SERVER_CERTIFICATE;
     exit_code = receive_tls_message(sockfd, &s_cert, CERT_MSG_SIZE, SERVER_CERTIFICATE);
     if (exit_code < 0 || exit_code == ERR_FAILURE) {
         printf("Error: Did not receive server certificate correctly.\n");
         printf("exit_code = %d\n", exit_code);
-        // printCharArray(s_cert.cert);
 
     }
 
-    // TODO: find out how to get the hex part from CA_EXPONENT and CA_MODULUS so I don't have to hard code it in anymore
     /* -------- 4.1 decrypt server certificate and extract server public key -----*/
     // Get CA mod and exp
     mpz_t ca_exp;
@@ -219,80 +204,54 @@ int main(int argc, char **argv) {
     mpz_init(ca_mod);
     mpz_set_str(ca_mod, CA_MODULUS, 0);
 
-    printf("ca_exp: ");
-    mpz_out_str(stdout, 10, ca_exp);
-    printf("\n");
-    // printf("ca_mod: ");
-    // mpz_out_str(stdout, 10, ca_mod);
-    // printf("\n");
-
     // decrypt server
     mpz_t decrypted_cert;
     mpz_init(decrypted_cert);
     decrypt_cert(decrypted_cert, &s_cert, ca_exp, ca_mod);
     
-    // hex_to_str(CA_MODULUS, RSA_MAX_LEN);
-
-    // printf("decrypted_cert: ");
-    // mpz_out_str(stdout, 10, decrypted_cert);
-    // printf("\n");
-
-    // printVariable(mpz_get_str(NULL, HEX_BASE, decrypted_cert));
-    // mpz_t test;
-    // mpz_init_set_str(test, mpz_get_str(NULL, HEX_BASE, decrypted_cert), 16);
-    // mpz_out_str(stdout,10,test);
-    // printf("\n");
 
     // save decrypted_cert into a string
-    // char *server_cert_string = mpz_get_str(NULL, HEX_BASE, decrypted_cert);
     char server_cert_string[CERT_MSG_SIZE];
     mpz_get_ascii(server_cert_string, decrypted_cert);
 
     // extract server exponent
     mpz_t server_exponent;
     mpz_init(server_exponent);
-    // printf("server_cert_string: %s, length: %d\n", server_cert_string, strlen(server_cert_string));
     get_cert_exponent(server_exponent, server_cert_string); // gives seg fault
 
-    // printf("we got cert exponent!\n");
 
     // extract server mod
     mpz_t server_mod;
     mpz_init(server_mod);
     get_cert_modulus(server_mod, server_cert_string);
 
-    // printf("we got cert mod!\n");
+
+    /* -----  5. Compute premaster secret, send it to server, encrypted with server public key --------*/
 
     /* -----  5. Compute premaster secret, send it to server, encrypted with server public key --------*/
 
     // prepare data structures
     ps_msg psm;
     psm.type = PREMASTER_SECRET;
-    int ps = random_int();
 
     mpz_t ps_mpz;
+    int ps = random_int();
     mpz_init_set_si(ps_mpz, ps);
+    printf("ps: %x\n", ps);
+    printf("our ps random int: ");
+    mpz_out_str(stdout, 16, ps_mpz);
+    printf("\n");
+
     // start encryption
     mpz_t encrypted_premaster;
     mpz_init(encrypted_premaster);
     perform_rsa(encrypted_premaster, ps_mpz, server_exponent, server_mod); // encrypt with server key
 
-    // printf("encrypted_premaster = %s\n", hex_to_str(encrypted_premaster,RSA_MAX_LEN));
-
-    printf("we encrypted the premaster!\n");
-
-    char* encrypted_premaster_string = mpz_get_str(NULL, HEX_BASE, encrypted_premaster);
-    // char encrypted_premaster_string[CERT_MSG_SIZE];
-    // mpz_get_ascii(encrypted_premaster_string, encrypted_premaster);
-    // printf("encrypted_premaster: ");
-    // printCertificate(ps_mpz);
-    // printf("encrypted_premaster_string: ");
-    // printCharArray(encrypted_premaster_string);
 
     /*** TODO: Double check how premaster is being set ****/
-    memset(psm.ps, 0, RSA_MAX_LEN); // set the message to zero before assigning
-    memcpy(psm.ps, encrypted_premaster_string, RSA_MAX_LEN); // copy to message
-    // printCharArray(psm.ps);
+    // memcpy(psm.ps, encrypted_premaster, RSA_MAX_LEN); // copy to message
+    mpz_get_str(psm.ps, 16, encrypted_premaster); // copy to message
+    printf("encrypted_premaster: %s\n", psm.ps);
 
     // send the message
     exit_code = send_tls_message(sockfd, &psm, PS_MSG_SIZE);
@@ -307,23 +266,18 @@ int main(int argc, char **argv) {
     unsigned char master_secret[RSA_MAX_LEN];
     compute_master_secret(ps, c_hello.random, s_hello.random, master_secret);
 
-    // printf("c_hello.random: %d, s_hello.random: %d\n", c_hello.random, s_hello.random);
 
     printf("computed master secret!\n");
-    // printUnsignedCharArray(master_secret);
 
     // 6.1 and now receive the server master, confirm it's the same
     ps_msg psm_response;
-    // psm_response.type = malloc(sizeof(int));
     exit_code = receive_tls_message(sockfd, &psm_response, PS_MSG_SIZE, VERIFY_MASTER_SECRET);
     if (exit_code < 0 || exit_code == ERR_FAILURE) {
         printf("Error: Did not receive server master correctly.\n");
         // return ERR_FAILURE;
     }
 
-    // printCharArray(psm_response.ps);
     printf("received server master; exit_code: %d\n", exit_code);
-    // printf("psm_response: %d, s_hello.random: %d\n", *((int *) psm_response), s_hello.random);
 
     mpz_t server_premaster;
     mpz_init(server_premaster);
@@ -359,22 +313,11 @@ int main(int argc, char **argv) {
 
     // YOUR CODE HERE
     // SET AES KEYS - to master_secret
-
-    /* NOT DONE! */
-    /*
-    if (aes_setkey_enc(&enc_ctx, uchar* master_secret, 128)) {
-        printf("Error setting key.\n");
-    }
-
-    if (aes_setkey_enc(&dec_ctx, uchar* master_secret, 128)) {
-        printf("Error setting key.\n");
-    }
-    */
     if (aes_setkey_enc(&enc_ctx, master_secret, 128)) {
         printf("Error setting encryption key.\n");
     }
 
-    if (aes_setkey_enc(&dec_ctx, master_secret, 128)) {
+    if (aes_setkey_dec(&dec_ctx, master_secret, 128)) {
         printf("Error setting decryption key.\n");
     }
 
@@ -461,7 +404,6 @@ decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_
     mpz_init(mpz_cert);
     mpz_set_str(mpz_cert, cert->cert, 0); // note, leading '0x' may cause issues.t
     perform_rsa(decrypted_cert, mpz_cert, key_exp, key_mod);
-    // printCertificate(decrypted_cert);
 
     /*
     // debug
@@ -497,7 +439,6 @@ decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, 
     mpz_set_str(secret, ms_ver->ps, 16);
     perform_rsa(decrypted_ms, secret, key_exp, key_mod);
 
-    printf("done decrypting a certificate\n");
 }
 
 /*
@@ -560,10 +501,6 @@ send_tls_message(int socketno, void *msg, int msg_len)
 int
 receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
 {
-    // debugging print statements
-    // void * to int reference: http://stackoverflow.com/questions/1640423/error-cast-from-void-to-int-loses-precision
-
-    // printf("msg.type = %d, msg_type = %d\n", type_of_msg, msg_type);
 
     // TODO: Double-check
     int read_result = read(socketno, msg, msg_len);

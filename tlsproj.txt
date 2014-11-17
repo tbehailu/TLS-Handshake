@@ -8,7 +8,7 @@ We want to make the victim do a compute heavy task, and do it many times. What a
 
 The random_int() function uses srand, a pseudo-random generator, with time(NULL) as the seed argument to chose random numbers. The output of time(NULL) is the time elapsed since the epoch (January 1 1970), which means we are actually calling srand on a small set of values that could be guessed by an attacker.
 
-In a short enough time frame, there's only so many seeds we could use. As such, the man in the middle could try all possible random ints and break our encryption.
+In a short enough time frame, there's only so many seeds we could use.As such, the man in the middle could try all possible random ints and break our encryption.
 
 
 3. We have talked about a downgrade attack in class before. Assuming that the server and client supported multiple cipher suites (some weaker than others), show how a downgrade attack might be possible on the Terribly Lacking Security handshake. Then suggest a method or adaptation to the handshake that would mitigate a downgrade attack.
