@@ -459,7 +459,7 @@ decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_
 
     mpz_t mpz_cert;
     mpz_init(mpz_cert);
-    mpz_set_str(mpz_cert, hex_to_str(cert->cert,RSA_MAX_LEN), 0); // note, leading '0x' may cause issues.t
+    mpz_set_str(mpz_cert, cert->cert, 0); // note, leading '0x' may cause issues.t
     perform_rsa(decrypted_cert, mpz_cert, key_exp, key_mod);
     // printCertificate(decrypted_cert);
 
@@ -514,41 +514,14 @@ compute_master_secret(int ps, int client_random, int server_random, unsigned cha
 {
     // IMPORTANT - DEBUG THIS FUNCTION! It is untested and is likely buggy.
     printf("computing the master secret..\n");
-    // ps
-    unsigned char ps_array[8];
-    assign(ps_array,  (uint8_t) ps); // use assign from gentable. remember it's size 8.
-    
+    int input[4] = {ps, client_random, server_random, ps};
 
-    // client secret
-    unsigned char cli_array[8];
-    assign(cli_array,  (uint8_t) client_random); // use assign from gentable. remember it's size 8.
-
-    // server secret
-    unsigned char ser_array[8];
-    assign(ser_array,  (uint8_t) server_random); // use assign from gentable. remember it's size 8.
-
-
-    // unsigned char *hash_data = (unsigned char *)calloc(32, sizeof(unsigned char));
-    
-    unsigned char *hash_data = malloc(8);
-
-    // add to hash
-    // Master secret = H(PS||clienthello.random||serverhello.random||PS)
-
-    // void sha256_update(SHA256_CTX *ctx, uchar data[], uint len)
-
-
-    
     SHA256_CTX ctx;
     sha256_init(&ctx);
-    sha256_update(&ctx, ps_array, 8);
-    
-    sha256_update(&ctx, ser_array, 8);
-    sha256_update(&ctx, cli_array, 8);
-    sha256_update(&ctx, ps_array, 8);
+    unsigned char *hash = (unsigned char *) input;
+    sha256_update(&ctx, hash, sizeof(int)*4);
     sha256_final(&ctx, master_secret);
 
-    free(hash_data);
 }
 
 /*
