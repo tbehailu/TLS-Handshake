@@ -443,21 +443,8 @@ compute_master_secret(int ps, int client_random, int server_random, unsigned cha
     int input[4] = {ps, client_random, server_random, ps};
     SHA256_CTX ctx;
     sha256_init(&ctx);
-    unsigned char *hash = (unsigned char *) input;
-    sha256_update(&ctx, hash, sizeof(int)*4);
+    sha256_update(&ctx, ((unsigned char *) input), sizeof(int)*4);
     sha256_final(&ctx, master_secret);
-
-    // unsigned char * ps_string = (unsigned char *)ps;
-    // unsigned char * client_string = (unsigned char *)client_random;
-    // unsigned char * server_string = (unsigned char *)server_random;
-
-    // SHA256_CTX ctx;
-    // sha256_init(&ctx);
-    // sha256_update(&ctx, ps_string, sizeof(int));
-    // sha256_update(&ctx, client_string, sizeof(int));
-    // sha256_update(&ctx, server_string, sizeof(int));
-    // sha256_update(&ctx, ps_string, sizeof(int));
-    // sha256_final(&ctx, master_secret);
 
 }
 
