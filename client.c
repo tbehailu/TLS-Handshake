@@ -239,7 +239,6 @@ int main(int argc, char **argv) {
     perform_rsa(encrypted_premaster, ps_mpz, server_exponent, server_mod); // encrypt with server key
 
     mpz_get_str(psm.ps, HEX_BASE, encrypted_premaster); // copy to message
-    // printf("encrypted_premaster: %s\n", psm.ps);
 
     // send the message
     exit_code = send_tls_message(sockfd, &psm, PS_MSG_SIZE);
@@ -389,8 +388,7 @@ decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_
 {
 
     mpz_t mpz_cert;
-    mpz_init(mpz_cert);
-    mpz_set_str(mpz_cert, cert->cert, 0); // note, leading '0x' may cause issues.t
+    mpz_init_set_str(mpz_cert, cert->cert, 0); // note, leading '0x' may cause issues.t
     perform_rsa(decrypted_cert, mpz_cert, key_exp, key_mod);
 
     /*
