@@ -326,19 +326,22 @@ int main(int argc, char **argv) {
     // printf("psm_response: %d, s_hello.random: %d\n", *((int *) psm_response), s_hello.random);
 
     mpz_t server_premaster;
-    mpz_init(server_exponent);
+    mpz_init(server_premaster);
     decrypt_verify_master_secret(server_premaster, &psm_response, client_exp, client_mod);
 
-    // TODO: check that str(server_premaster) == master_secret
-    printf("server_premaster = ");
-    printCertificate(server_premaster);
-    // char output_str[RSA_MAX_LEN];
-    // mpz_get_ascii(output_str, server_premaster);
-    // printCharArray(output_str);
-    // printf("\n");
-    printf("master_secret = ");
-    printUnsignedCharArray(master_secret);
-    printf("\n");
+    // get server_premaster string
+    char server_psm[AES_BLOCK_SIZE];
+    mpz_get_str(server_psm, HEX_BASE, server_premaster);
+    printf("server_premaster = %s\n", server_psm);
+    printf("master_secret = %s\n", hex_to_str(master_secret, 16));
+
+    // confirm that server_master and master_secret are the same
+    int are_equal = strcasecmp(hex_to_str(master_secret, 16), server_psm);
+    if (are_equal  == 0) {
+        printf("It's a match! %d\n", are_equal);
+    } else {
+        printf("It is not a match :( %d \n", are_equal);
+    }
 
     /*
     * START ENCRYPTED MESSAGES
@@ -489,10 +492,12 @@ void
 decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, mpz_t key_mod)
 {
     // printf("decrypting the master secret..\n");
-    mpz_t ps;
-    mpz_init_set_str(ps, ms_ver->ps, 0);
-    // perform the decryption
-    perform_rsa(decrypted_ms, ps, key_exp, key_mod);
+    mpz_t secret;
+    mpz_init(secret);
+    mpz_set_str(secret, ms_ver->ps, 16);
+    perform_rsa(decrypted_ms, secret, key_exp, key_mod);
+
+    printf("done decrypting a certificate\n");
 }
 
 /*
