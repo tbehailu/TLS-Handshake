@@ -25,9 +25,6 @@ void printCertificate(mpz_t result);
 void printCharArray(char *arr);
 void printUnsignedCharArray(unsigned char *arr);
 
-/* Helper function, assigns into to char array. */
-static void assign (unsigned char *pass, uint32_t val);
-
 int main(int argc, char **argv) {
 
     /* Various set up code - declare vars, etc. */
@@ -156,7 +153,7 @@ int main(int argc, char **argv) {
     c_hello.cipher_suite = TLS_RSA_WITH_AES_128_ECB_SHA256;
     exit_code = send_tls_message(sockfd, &c_hello, HELLO_MSG_SIZE);
     if (exit_code < 0) {
-        printf("caught error! TODO - quit here.");
+        printf("Error: Did not send client hello correctly.");
     }
 
 
@@ -165,7 +162,7 @@ int main(int argc, char **argv) {
     hello_message s_hello;
     exit_code = receive_tls_message(sockfd, &s_hello, HELLO_MSG_SIZE, SERVER_HELLO);
     if (exit_code < 0) {
-        printf("caught error! TODO - quit here.");
+        printf("Error: Did not send server hello correctly.");
     }
     int server_random = s_hello.random;
 
@@ -228,8 +225,6 @@ int main(int argc, char **argv) {
 
     /* -----  5. Compute premaster secret, send it to server, encrypted with server public key --------*/
 
-    /* -----  5. Compute premaster secret, send it to server, encrypted with server public key --------*/
-
     // prepare data structures
     ps_msg psm;
     psm.type = PREMASTER_SECRET;
@@ -237,26 +232,19 @@ int main(int argc, char **argv) {
     mpz_t ps_mpz;
     int ps = random_int();
     mpz_init_set_si(ps_mpz, ps);
-    printf("ps: %x\n", ps);
-    printf("our ps random int: ");
-    mpz_out_str(stdout, 16, ps_mpz);
-    printf("\n");
 
     // start encryption
     mpz_t encrypted_premaster;
     mpz_init(encrypted_premaster);
     perform_rsa(encrypted_premaster, ps_mpz, server_exponent, server_mod); // encrypt with server key
 
-
-    /*** TODO: Double check how premaster is being set ****/
-    // memcpy(psm.ps, encrypted_premaster, RSA_MAX_LEN); // copy to message
-    mpz_get_str(psm.ps, 16, encrypted_premaster); // copy to message
-    printf("encrypted_premaster: %s\n", psm.ps);
+    mpz_get_str(psm.ps, HEX_BASE, encrypted_premaster); // copy to message
+    // printf("encrypted_premaster: %s\n", psm.ps);
 
     // send the message
     exit_code = send_tls_message(sockfd, &psm, PS_MSG_SIZE);
     if (exit_code < 0) {
-        printf("caught error! TODO - quit here.");
+        printf("Error: Did not send premaster secret correctly.");
     }
 
     printf("we have sent the premaster secret!\n");
@@ -286,16 +274,21 @@ int main(int argc, char **argv) {
     // get server_premaster string
     char server_psm[AES_BLOCK_SIZE];
     mpz_get_str(server_psm, HEX_BASE, server_premaster);
+    char *ms = hex_to_str(master_secret, AES_BLOCK_SIZE);
     printf("server_premaster = %s\n", server_psm);
-    printf("master_secret = %s\n", hex_to_str(master_secret, 16));
+    printf("master_secret = %s\n", ms);
 
     // confirm that server_master and master_secret are the same
-    int are_equal = strcasecmp(hex_to_str(master_secret, 16), server_psm);
+    // TODO: double-check if we should quit program here
+    int are_equal = strcasecmp(ms, server_psm);
     if (are_equal  == 0) {
         printf("It's a match! %d\n", are_equal);
     } else {
         printf("It is not a match :( %d \n", are_equal);
+        return ERR_FAILURE;
     }
+
+    printf("made it to the end of handshake!\n");
 
     /*
     * START ENCRYPTED MESSAGES
@@ -314,17 +307,12 @@ int main(int argc, char **argv) {
     // YOUR CODE HERE
     // SET AES KEYS - to master_secret
     if (aes_setkey_enc(&enc_ctx, master_secret, 128)) {
-        printf("Error setting encryption key.\n");
+        printf("Error: Did not set encryption key correctly.\n");
     }
 
     if (aes_setkey_dec(&dec_ctx, master_secret, 128)) {
-        printf("Error setting decryption key.\n");
+        printf("Error: Did not set decryption key correctly.\n");
     }
-
-    printf("made it to the end of handshake!\n");
-
-
-
 
 
     fcntl(STDIN_FILENO, F_SETFL, O_NONBLOCK);
@@ -373,6 +361,7 @@ int main(int argc, char **argv) {
                     counter += AES_BLOCK_SIZE;
                     memcpy(rcv_ciphertext, rcv_msg.msg+counter, AES_BLOCK_SIZE);
                 }
+                printf("\n");
             }
         }
 
@@ -398,7 +387,6 @@ int main(int argc, char **argv) {
 void
 decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_mod)
 {
-    // printf("decrypting a certificate\n");
 
     mpz_t mpz_cert;
     mpz_init(mpz_cert);
@@ -406,15 +394,13 @@ decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_
     perform_rsa(decrypted_cert, mpz_cert, key_exp, key_mod);
 
     /*
-    // debug
+    // debugging
     char* result_str = mpz_get_str(NULL, 16, decrypted_cert);
     int i = 0;
     while(result_str[i] != '\0') {
         printf("%c", hex_to_ascii(result_str[i], result_str[i+1]));
         i+=2;
     }
-    printf("done decrypting a certificate\n");
-    // end debug
     */
 }
 
@@ -435,8 +421,7 @@ decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, 
 {
     // printf("decrypting the master secret..\n");
     mpz_t secret;
-    mpz_init(secret);
-    mpz_set_str(secret, ms_ver->ps, 16);
+    mpz_init_set_str(secret, ms_ver->ps, HEX_BASE);
     perform_rsa(decrypted_ms, secret, key_exp, key_mod);
 
 }
@@ -456,12 +441,23 @@ compute_master_secret(int ps, int client_random, int server_random, unsigned cha
     // IMPORTANT - DEBUG THIS FUNCTION! It is untested and is likely buggy.
     printf("computing the master secret..\n");
     int input[4] = {ps, client_random, server_random, ps};
-
     SHA256_CTX ctx;
     sha256_init(&ctx);
     unsigned char *hash = (unsigned char *) input;
     sha256_update(&ctx, hash, sizeof(int)*4);
     sha256_final(&ctx, master_secret);
+
+    // unsigned char * ps_string = (unsigned char *)ps;
+    // unsigned char * client_string = (unsigned char *)client_random;
+    // unsigned char * server_string = (unsigned char *)server_random;
+
+    // SHA256_CTX ctx;
+    // sha256_init(&ctx);
+    // sha256_update(&ctx, ps_string, sizeof(int));
+    // sha256_update(&ctx, client_string, sizeof(int));
+    // sha256_update(&ctx, server_string, sizeof(int));
+    // sha256_update(&ctx, ps_string, sizeof(int));
+    // sha256_final(&ctx, master_secret);
 
 }
 
@@ -502,7 +498,6 @@ int
 receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
 {
 
-    // TODO: Double-check
     int read_result = read(socketno, msg, msg_len);
     int type_of_msg = *((int *)msg);
     printf("read_result = %d, msg_len = %d\n", read_result, msg_len);
@@ -559,7 +554,7 @@ static int is_odd(mpz_t d) {
 static void
 perform_rsa(mpz_t result, mpz_t message, mpz_t e, mpz_t n)
 {
- /*
+ 
     mpz_set_ui(result, 1ul);
     while (mpz_cmp_ui(e, 0ul) > 0) {
         if (is_odd(e)) {
@@ -570,10 +565,9 @@ perform_rsa(mpz_t result, mpz_t message, mpz_t e, mpz_t n)
         mpz_mod(message, message, n);
         mpz_div_ui(e, e, 2);
     }
-*/
-    /* Checking with staff solution to proj0 */
-    int odd_num;
 
+    /* // Staff Solution to proj0
+    int odd_num;
     mpz_set_str(result, "1", 10);
     odd_num = mpz_odd_p(e);
     while (mpz_cmp_ui(e, 0) > 0) {
@@ -586,7 +580,9 @@ perform_rsa(mpz_t result, mpz_t message, mpz_t e, mpz_t n)
     mpz_mod(message, message, n);
     mpz_div_ui(e, e, 2);
     odd_num = mpz_odd_p(e);
+    
   }
+  */
   // debugging..
   // printf("perform_rsa output: ");
   // mpz_out_str (stdout, 10, result);
@@ -765,17 +761,6 @@ cleanup()
 {
     close(sockfd);
     exit(1);
-}
-
-
-/* Assigns into to unsigned char array */
-void assign (unsigned char *arr, uint32_t val)
-{
-    int i;
-    for (i = 7; i >= 0; i--) {
-        arr[i] = (unsigned char) val & 0xFF;
-        val >>= 8;
-    }
 }
 
 void printVariable(char *input){
