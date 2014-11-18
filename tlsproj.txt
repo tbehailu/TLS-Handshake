@@ -14,3 +14,7 @@ In a short enough time frame, there's only so many seeds we could use.As such, t
 3. We have talked about a downgrade attack in class before. Assuming that the server and client supported multiple cipher suites (some weaker than others), show how a downgrade attack might be possible on the Terribly Lacking Security handshake. Then suggest a method or adaptation to the handshake that would mitigate a downgrade attack.
 
 A downgrade attack works by making an encrypted connection more easily exploitable. During the handshake, the client and server exchange a list of cipher suites each supports. The attacker can intercept this initial transaction and ensure that the weakest cipher suite is used. The attacker now has information on how to exploit the connection and its weaknesses because it has knowledge of the cipher suite. In order to mitigate this attack, the server and client need to encrypt their initial hello messages to each other when setting up the connection containing this potentially exploitable information. This can be done by using the other's public key to encrypt information on the cipher suites each supports.
+
+
+4. (Extra Credit) List as many security flaws in the Terribly Lacking Secu- rity protocol/implementation as you can find and suggest ways that you might fix them. (Note: The flaws discussed above do not count)
+

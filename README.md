@@ -8,10 +8,8 @@
 
 ## ToDo
 
-4. implement compute_master_secret(). use random_int()
-5. implement decrypt_verify_master_secret()
-6. fill out main
 7. Write up answers in writeup file.
+8. Double-check client.c in a blank project folder to make sure it will work with autograder.
 8. submit
 9. Drink heavily in celebration!
 
