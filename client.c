@@ -195,11 +195,9 @@ int main(int argc, char **argv) {
     /* -------- 4.1 decrypt server certificate and extract server public key -----*/
     // Get CA mod and exp
     mpz_t ca_exp;
-    mpz_init(ca_exp);
-    mpz_set_str(ca_exp, CA_EXPONENT,0); // 0x10001 = 65537
+    mpz_init_set_str(ca_exp, CA_EXPONENT,0); // 0x10001 = 65537
     mpz_t ca_mod;
-    mpz_init(ca_mod);
-    mpz_set_str(ca_mod, CA_MODULUS, 0);
+    mpz_init_set_str(ca_mod, CA_MODULUS, 0);
 
     // decrypt server
     mpz_t decrypted_cert;
@@ -280,9 +278,7 @@ int main(int argc, char **argv) {
     // confirm that server_master and master_secret are the same
     // TODO: double-check if we should quit program here
     int are_equal = strcasecmp(ms, server_psm);
-    if (are_equal  == 0) {
-        printf("It's a match! %d\n", are_equal);
-    } else {
+    if (are_equal != 0){
         printf("It is not a match :( %d \n", are_equal);
         return ERR_FAILURE;
     }
