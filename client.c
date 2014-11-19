@@ -140,11 +140,8 @@ int main(int argc, char **argv) {
         cleanup();
     }
 
-    // YOUR CODE HERE
-    // IMPLEMENT THE TLS HANDSHAKE
     int exit_code; // used for catching errors.
 
-    /* NOTE - THIS CODE IS NOT COMPLETE YET. */
     /* ---------  1. send Client hello ---------*/
     hello_message c_hello;
     c_hello.type = CLIENT_HELLO;
@@ -158,7 +155,6 @@ int main(int argc, char **argv) {
 
 
     /* ---------- 2. receive Server hello --------*/
-
     hello_message s_hello;
     exit_code = receive_tls_message(sockfd, &s_hello, HELLO_MSG_SIZE, SERVER_HELLO);
     if (exit_code < 0) {
@@ -170,14 +166,8 @@ int main(int argc, char **argv) {
     /* --------- 3. send client cert ----------*/
     cert_message c_cert;
     c_cert.type = CLIENT_CERTIFICATE;
-
-    /****** TODO: Double check *******/
-
-    memset(c_cert.cert, 0, RSA_MAX_LEN); // set the message to zero before assigning
-    fgets(c_cert.cert, RSA_MAX_LEN, c_file); 
-    
-    
-    
+    memset(c_cert.cert, 0, RSA_MAX_LEN);
+    fgets(c_cert.cert, RSA_MAX_LEN, c_file);
     exit_code = send_tls_message(sockfd, &c_cert, CERT_MSG_SIZE);
     if (exit_code < 0) {
         printf("Error: Did not send client certificate correctly.");
@@ -189,7 +179,6 @@ int main(int argc, char **argv) {
     if (exit_code < 0 || exit_code == ERR_FAILURE) {
         printf("Error: Did not receive server certificate correctly.\n");
         printf("exit_code = %d\n", exit_code);
-
     }
 
     /* -------- 4.1 decrypt server certificate and extract server public key -----*/
@@ -203,7 +192,6 @@ int main(int argc, char **argv) {
     mpz_t decrypted_cert;
     mpz_init(decrypted_cert);
     decrypt_cert(decrypted_cert, &s_cert, ca_exp, ca_mod);
-    
 
     // save decrypted_cert into a string
     char server_cert_string[CERT_MSG_SIZE];
@@ -212,17 +200,14 @@ int main(int argc, char **argv) {
     // extract server exponent
     mpz_t server_exponent;
     mpz_init(server_exponent);
-    get_cert_exponent(server_exponent, server_cert_string); // gives seg fault
-
+    get_cert_exponent(server_exponent, server_cert_string);
 
     // extract server mod
     mpz_t server_mod;
     mpz_init(server_mod);
     get_cert_modulus(server_mod, server_cert_string);
 
-
     /* -----  5. Compute premaster secret, send it to server, encrypted with server public key --------*/
-
     // prepare data structures
     ps_msg psm;
     psm.type = PREMASTER_SECRET;
@@ -235,7 +220,6 @@ int main(int argc, char **argv) {
     mpz_t encrypted_premaster;
     mpz_init(encrypted_premaster);
     perform_rsa(encrypted_premaster, ps_mpz, server_exponent, server_mod); // encrypt with server key
-
     mpz_get_str(psm.ps, HEX_BASE, encrypted_premaster); // copy to message
 
     // send the message
@@ -244,26 +228,16 @@ int main(int argc, char **argv) {
         printf("Error: Did not send premaster secret correctly.");
     }
 
-    printf("we have sent the premaster secret!\n");
-
     /* --------  6. compute the local master secret -------*/
-
     unsigned char master_secret[RSA_MAX_LEN];
     compute_master_secret(ps, c_hello.random, s_hello.random, master_secret);
 
-
-    printf("computed master secret!\n");
-
-    // 6.1 and now receive the server master, confirm it's the same
+    // receive the server master, confirm it's the same
     ps_msg psm_response;
     exit_code = receive_tls_message(sockfd, &psm_response, PS_MSG_SIZE, VERIFY_MASTER_SECRET);
     if (exit_code < 0 || exit_code == ERR_FAILURE) {
         printf("Error: Did not receive server master correctly.\n");
-        // return ERR_FAILURE;
     }
-
-    printf("received server master; exit_code: %d\n", exit_code);
-
     mpz_t server_premaster;
     mpz_init(server_premaster);
     decrypt_verify_master_secret(server_premaster, &psm_response, client_exp, client_mod);
@@ -272,23 +246,17 @@ int main(int argc, char **argv) {
     char server_psm[AES_BLOCK_SIZE];
     mpz_get_str(server_psm, HEX_BASE, server_premaster);
     char *ms = hex_to_str(master_secret, AES_BLOCK_SIZE);
-    printf("server_premaster = %s\n", server_psm);
-    printf("master_secret = %s\n", ms);
 
     // confirm that server_master and master_secret are the same
-    // TODO: double-check if we should quit program here
     int are_equal = strcasecmp(ms, server_psm);
     if (are_equal != 0){
         printf("It is not a match :( %d \n", are_equal);
         return ERR_FAILURE;
     }
 
-    printf("made it to the end of handshake!\n");
-
     /*
     * START ENCRYPTED MESSAGES
     */
-
     memset(send_plaintext, 0, AES_BLOCK_SIZE);
     memset(send_ciphertext, 0, AES_BLOCK_SIZE);
     memset(rcv_plaintext, 0, AES_BLOCK_SIZE);
@@ -299,8 +267,7 @@ int main(int argc, char **argv) {
     aes_init(&enc_ctx);
     aes_init(&dec_ctx);
 
-    // YOUR CODE HERE
-    // SET AES KEYS - to master_secret
+    // SET AES KEYS to master_secret
     if (aes_setkey_enc(&enc_ctx, master_secret, 128)) {
         printf("Error: Did not set encryption key correctly.\n");
     }
@@ -382,20 +349,9 @@ int main(int argc, char **argv) {
 void
 decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_mod)
 {
-
     mpz_t mpz_cert;
-    mpz_init_set_str(mpz_cert, cert->cert, 0); // note, leading '0x' may cause issues.t
+    mpz_init_set_str(mpz_cert, cert->cert, 0);
     perform_rsa(decrypted_cert, mpz_cert, key_exp, key_mod);
-
-    /*
-    // debugging
-    char* result_str = mpz_get_str(NULL, 16, decrypted_cert);
-    int i = 0;
-    while(result_str[i] != '\0') {
-        printf("%c", hex_to_ascii(result_str[i], result_str[i+1]));
-        i+=2;
-    }
-    */
 }
 
 /*
@@ -413,7 +369,6 @@ decrypt_cert(mpz_t decrypted_cert, cert_message *cert, mpz_t key_exp, mpz_t key_
 void
 decrypt_verify_master_secret(mpz_t decrypted_ms, ps_msg *ms_ver, mpz_t key_exp, mpz_t key_mod)
 {
-    // printf("decrypting the master secret..\n");
     mpz_t secret;
     mpz_init_set_str(secret, ms_ver->ps, HEX_BASE);
     perform_rsa(decrypted_ms, secret, key_exp, key_mod);
@@ -493,17 +448,6 @@ receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
     }
 
     return ERR_FAILURE;
-
-    /*
-    if (read_result == -1) {
-        printf("Error sending TLS message. Error code: %d \n", errno);
-    }
-    if (read_result != msg_len) {
-        printf("Warning: message was not fully read!\n");
-        read_result = -1; // set error return code.
-    }
-    return read_result;
-    */
 }
 
 
@@ -535,7 +479,6 @@ static int is_odd(mpz_t d) {
 static void
 perform_rsa(mpz_t result, mpz_t message, mpz_t e, mpz_t n)
 {
- 
     mpz_set_ui(result, 1ul);
     while (mpz_cmp_ui(e, 0ul) > 0) {
         if (is_odd(e)) {
@@ -546,28 +489,6 @@ perform_rsa(mpz_t result, mpz_t message, mpz_t e, mpz_t n)
         mpz_mod(message, message, n);
         mpz_div_ui(e, e, 2);
     }
-
-    /* // Staff Solution to proj0
-    int odd_num;
-    mpz_set_str(result, "1", 10);
-    odd_num = mpz_odd_p(e);
-    while (mpz_cmp_ui(e, 0) > 0) {
-    if (odd_num) {
-      mpz_mul(result, result, message);
-      mpz_mod(result, result, n);
-      mpz_sub_ui(e, e, 1);
-    }
-    mpz_mul(message, message, message);
-    mpz_mod(message, message, n);
-    mpz_div_ui(e, e, 2);
-    odd_num = mpz_odd_p(e);
-    
-  }
-  */
-  // debugging..
-  // printf("perform_rsa output: ");
-  // mpz_out_str (stdout, 10, result);
-  // printf("\n");
 }
 
 
