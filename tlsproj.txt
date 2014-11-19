@@ -1,24 +1,27 @@
 
-1. 
+1.
 
 We want to make the victim do a compute heavy task, and do it many times. What an attacker could do is modify all the messages to look like either the encrypted premaster or encrypted master secret, and just send random data. The victim would then constantly be decrypting a fake message, consuming cycles and blocking communication channels.
 
 
-2. 
+2.
 
 The random_int() function uses srand, a pseudo-random generator, with time(NULL) as the seed argument to chose random numbers. The output of time(NULL) is the time elapsed since the epoch (January 1 1970), which means we are actually calling srand on a small set of values that could be guessed by an attacker.
 
 In a short enough time frame, there's only so many seeds we could use. As such, the man in the middle could try all possible random ints and break our encryption.
 
 
-3. 
+3.
 
 A downgrade attack works by making an encrypted connection more easily exploitable. During the handshake, the client and server exchange a list of cipher suites each supports. The attacker can intercept this initial transaction and ensure that the weakest cipher suite is used. The attacker now has information on how to exploit the connection and its weaknesses because it has knowledge of the cipher suite. In order to mitigate this attack, the server and client need to encrypt their initial hello messages to each other when setting up the connection containing this potentially exploitable information. This can be done by using the other's public key to encrypt information on the cipher suites each supports.
 
 
 4. (Extra Credit) List as many security flaws in the Terribly Lacking Security protocol/implementation as you can find and suggest ways that you might fix them. (Note: The flaws discussed above do not count)
 
-- Problem: Initial communications are in plain text - both hello's and the certificates. We should use a CA, and have all initial communications should be encrypted with the corresponding public keys of the recipient. This will block the MITM from a downgrade attack, as well as not reveal any data about the random number.
-- 
-- 
+- Problem: Initial communications are in plain text - both hello's and the certificates. Solution: We should use a CA, and have all initial communications should be encrypted with the corresponding public keys of the recipient. This will block the MITM from a downgrade attack, as well as not reveal any data about the random number.
 
+- There are no nonces in any of the messages, and as such, this protocol is subject to a replay attack. We can solve this by adding a nonce based on a timestamp or hash of a timestamp and ensure freshness.
+
+- Our random number generator is very trivial, and as such, is pretty predictable. If we have a better one, this will heighten security.
+
+- We have no way of telling if a message is corrupted. We can solve this by including a checksum, and a parity bit (or two) of the checksum itself. This way, if the message is corrupted in transit, we will know, and will just wait for a resent copy.

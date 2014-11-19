@@ -326,9 +326,7 @@ int main(int argc, char **argv) {
                 printf("\n");
             }
         }
-
     }
-
     out:
     close(sockfd);
     return 0;
