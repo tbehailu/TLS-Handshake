@@ -1,17 +1,17 @@
 
-1. All messages in this protocol have a type field sent in plaintext. If an attacker can alter packets being sent to and from the server, explain how it can launch a DoS attack on the server or client in a way that does not reveal it’s involvement.
+1. 
 
 We want to make the victim do a compute heavy task, and do it many times. What an attacker could do is modify all the messages to look like either the encrypted premaster or encrypted master secret, and just send random data. The victim would then constantly be decrypting a fake message, consuming cycles and blocking communication channels.
 
 
-2. Look at the function random int(). How are the ”random” numbers chosen? Can an attacker learn any information about our system or other random values if they know our method? Suggest a way that a man-in-the-middle might be able to use this to break our encryption. Tip: try printing random values as they are chosen during the handshake.
+2. 
 
 The random_int() function uses srand, a pseudo-random generator, with time(NULL) as the seed argument to chose random numbers. The output of time(NULL) is the time elapsed since the epoch (January 1 1970), which means we are actually calling srand on a small set of values that could be guessed by an attacker.
 
 In a short enough time frame, there's only so many seeds we could use. As such, the man in the middle could try all possible random ints and break our encryption.
 
 
-3. We have talked about a downgrade attack in class before. Assuming that the server and client supported multiple cipher suites (some weaker than others), show how a downgrade attack might be possible on the Terribly Lacking Security handshake. Then suggest a method or adaptation to the handshake that would mitigate a downgrade attack.
+3. 
 
 A downgrade attack works by making an encrypted connection more easily exploitable. During the handshake, the client and server exchange a list of cipher suites each supports. The attacker can intercept this initial transaction and ensure that the weakest cipher suite is used. The attacker now has information on how to exploit the connection and its weaknesses because it has knowledge of the cipher suite. In order to mitigate this attack, the server and client need to encrypt their initial hello messages to each other when setting up the connection containing this potentially exploitable information. This can be done by using the other's public key to encrypt information on the cipher suites each supports.
 
