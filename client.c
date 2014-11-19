@@ -388,7 +388,7 @@ void
 compute_master_secret(int ps, int client_random, int server_random, unsigned char *master_secret)
 {
     // IMPORTANT - DEBUG THIS FUNCTION! It is untested and is likely buggy.
-    printf("computing the master secret..\n");
+    // printf("computing the master secret..\n");
     int input[4] = {ps, client_random, server_random, ps};
     SHA256_CTX ctx;
     sha256_init(&ctx);
@@ -436,8 +436,8 @@ receive_tls_message(int socketno, void *msg, int msg_len, int msg_type)
 
     int read_result = read(socketno, msg, msg_len);
     int type_of_msg = *((int *)msg);
-    printf("read_result = %d, msg_len = %d\n", read_result, msg_len);
-    printf("type_of_msg = %d, msg_type = %d\n", type_of_msg, msg_type);
+    // printf("read_result = %d, msg_len = %d\n", read_result, msg_len);
+    // printf("type_of_msg = %d, msg_type = %d\n", type_of_msg, msg_type);
 
     if (read_result != msg_len){ // if bytes read is not correct length or msg_type is error, return error
         return ERR_FAILURE;

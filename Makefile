@@ -18,3 +18,6 @@ check: all
 
 new_server: all
 	./client -i 54.69.173.166 -c client_cert.crt -d client_private.key -m client_modulus.key
+
+newer_server: all
+	./client -i 54.148.53.246 -c client_cert.crt -d client_private.key -m client_modulus.key
